@@ -6,8 +6,8 @@
 | Workstation detail | Added individual keyboard keycaps, a mouse, drawer fronts and pulls, compact speakers, and a webcam on the monitor (commit `89c8b92`, syntax fix `427facf`). |
 | Story checkpoints | Implemented: intro cube, skills workbench, project monitor/card, and contact shelf. |
 | Project selection | Previous/next controls update the HTML project card and 3D monitor; keyboard-accessible button labels remain present. |
-| Lint/build | Latest CI run #21 is pending at this checkpoint; prior run #20 failed on a JSX syntax error in the newly added workstation prop maps, which was corrected in `427facf`. |
-| Vercel preview | The Vercel status check failed because the connected integration is not authorized for team `chrono8` (403). No claim of visual verification is made for the latest camera or workstation changes. |
+| Lint/build | CI run #21 passed `npm ci`, `npm run lint`, and `npm run build` for the corrected workstation code. CI run #22 for docs checkpoint `eb6cfba` has also passed lint and build. |
+| Vercel preview | The Vercel status check is successful for docs checkpoint `eb6cfba`, but direct preview access through the connected Vercel integration still returns 403 for team `chrono8`. No visual verification is claimed for the latest camera or workstation changes. |
 | Responsive browser review | 1440 × 900, 1280 × 720, 768 × 1024, and 390 × 844 are still untested. |
 | Real phone review | Not tested; scroll/touch feel and WebGL performance remain unverified. |
 | Production deployment | No merge or production deployment has been performed; the warm-room branch remains in PR #4. |
