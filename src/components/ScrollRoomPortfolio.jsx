@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, RoundedBox, Text } from '@react-three/drei';
+import { RoundedBox, Text } from '@react-three/drei';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, LinkedinLogo, Mouse, Sparkle } from 'phosphor-react';
