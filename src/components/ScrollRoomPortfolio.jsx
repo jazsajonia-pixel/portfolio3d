@@ -189,6 +189,51 @@ function DeskAndSkills() {
         <boxGeometry args={[1.12, 0.055, 0.34]} />
         <meshStandardMaterial color="#f7f1e9" roughness={0.5} />
       </mesh>
+      {/* Individual keycaps make the input area read as a keyboard at room scale. */}
+      {Array.from({ length: 3 }, (_, row) =>
+        Array.from({ length: 10 }, (_, column) => (
+          <mesh key={`key-${row}-${column}`} position={[-0.29 + column * 0.105, -0.953, 0.30 + row * 0.105]}>
+            <boxGeometry args={[0.078, 0.018, 0.065]} />
+            <meshStandardMaterial color={(row === 0 && column === 0) || (row === 2 && column === 9) ? '#e8a16e' : '#d8c9b8'} roughness={0.58} />
+          </mesh>
+        ))
+      )}
+      <mesh position={[0.99, -0.955, 0.42]} rotation={[0.08, 0, 0]}>
+        <capsuleGeometry args={[0.09, 0.14, 4, 8]} />
+        <meshStandardMaterial color="#f7f1e9" roughness={0.42} />
+      </mesh>
+      <mesh position={[0.99, -0.86, 0.42]}>
+        <boxGeometry args={[0.012, 0.045, 0.012]} />
+        <meshBasicMaterial color="#b77a48" />
+      </mesh>
+      {/* Shallow drawer fronts and pulls give the workbench a crafted silhouette. */}
+      {[-0.68, 0.68].map((x) => (
+        <group key={x} position={[x, -1.31, 0.81]}>
+          <RoundedBox args={[0.82, 0.31, 0.07]} radius={0.035} smoothness={3}>
+            <meshStandardMaterial color="#bd804b" roughness={0.76} />
+          </RoundedBox>
+          <mesh position={[0, 0.015, 0.043]}>
+            <boxGeometry args={[0.19, 0.035, 0.025]} />
+            <meshStandardMaterial color="#e8c69d" metalness={0.22} roughness={0.4} />
+          </mesh>
+        </group>
+      )}
+      {/* Compact speakers sit at either side of the monitor base. */}
+      {[-1.48, 1.48].map((x) => (
+        <group key={x} position={[x, -0.77, -0.47]}>
+          <RoundedBox args={[0.3, 0.46, 0.28]} radius={0.045} smoothness={3}>
+            <meshStandardMaterial color="#b9a5c9" roughness={0.68} />
+          </RoundedBox>
+          <mesh position={[0, 0.055, 0.146]}>
+            <circleGeometry args={[0.075, 16]} />
+            <meshStandardMaterial color="#6e5d7c" roughness={0.62} />
+          </mesh>
+          <mesh position={[0, -0.085, 0.146]}>
+            <circleGeometry args={[0.035, 16]} />
+            <meshStandardMaterial color="#e5d8ec" roughness={0.58} />
+          </mesh>
+        </group>
+      )}
       <mesh position={[-1.2, -0.99, 0.3]} rotation={[0, 0.08, 0]}>
         <boxGeometry args={[0.56, 0.12, 0.42]} />
         <meshStandardMaterial color="#c6a2d6" roughness={0.82} />
@@ -247,6 +292,16 @@ function Monitor({ activeProject }) {
       <RoundedBox castShadow receiveShadow position={[0, 0.05, 0]} args={[2.72, 1.82, 0.18]} radius={0.09} smoothness={4}>
         <meshStandardMaterial color="#e8d8c8" roughness={0.48} metalness={0.12} />
       </RoundedBox>
+      {/* A tiny webcam and lens detail break up the monitor's simple top edge. */}
+      <group position={[0, 0.99, 0.11]}>
+        <RoundedBox args={[0.34, 0.12, 0.12]} radius={0.045} smoothness={3}>
+          <meshStandardMaterial color="#594c4a" roughness={0.42} />
+        </RoundedBox>
+        <mesh position={[0, 0, 0.067]}>
+          <circleGeometry args={[0.032, 16]} />
+          <meshStandardMaterial color="#8ec8d5" emissive="#4c9cae" emissiveIntensity={0.28} />
+        </mesh>
+      </group>
       <mesh position={[0, 0.05, 0.105]}>
         <planeGeometry args={[2.48, 1.57]} />
         <meshBasicMaterial color="#29364d" />
@@ -257,8 +312,7 @@ function Monitor({ activeProject }) {
       </mesh>
       <Text position={[0, 0.27, 0.13]} fontSize={0.21} color="#fff4e6" anchorX="center" anchorY="middle" maxWidth={2.2}>
         {activeProject.title}
-      </Text>
-      <Text position={[0, -0.1, 0.13]} fontSize={0.09} color="#cbd8e9" anchorX="center" anchorY="middle" maxWidth={2.25}>
+      </Text>      <Text position={[0, -0.1, 0.13]} fontSize={0.09} color="#cbd8e9" anchorX="center" anchorY="middle" maxWidth={2.25}>
         {activeProject.type}
       </Text>
       <mesh position={[0, -0.48, 0.13]}>
