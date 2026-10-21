@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, RoundedBox, Text } from '@react-three/drei';
+import { ContactShadows, RoundedBox, Text } from '@react-three/drei';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, LinkedinLogo, Mouse, Sparkle } from 'phosphor-react';
@@ -37,9 +37,9 @@ function CameraPath({ progress }) {
   }, []);
   const targets = useMemo(() => [
     { position: new THREE.Vector3(0, 1.5, 11), look: new THREE.Vector3(0, 1, 0) },
-    { position: new THREE.Vector3(-3.4, 2.2, 7.2), look: new THREE.Vector3(-1.6, 1.3, -1.2) },
-    { position: new THREE.Vector3(3.4, 1.7, 5.5), look: new THREE.Vector3(1.2, 1.2, -1.1) },
-    { position: new THREE.Vector3(0, 3.4, 6.1), look: new THREE.Vector3(0, 2.5, -1.4) },
+    { position: new THREE.Vector3(-3.7, 1.35, 4.9), look: new THREE.Vector3(-1.8, -0.35, -1.65) },
+    { position: new THREE.Vector3(0.9, 0.95, 3.85), look: new THREE.Vector3(-1.65, -0.1, -2.0) },
+    { position: new THREE.Vector3(1.15, 2.15, 3.55), look: new THREE.Vector3(1.35, 1.35, -5.1) },
   ], []);
   useFrame((_, delta) => {
     const scaled = Math.min(progress, 0.999) * (targets.length - 1);
@@ -62,71 +62,377 @@ function CameraPath({ progress }) {
 }
 
 function RoomShell() {
+  const floorBoards = Array.from({ length: 15 }, (_, index) => -5.1 + index * 0.73);
   return (
     <>
-      <mesh position={[0, -2.45, -1.4]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[17, 14]} /><meshStandardMaterial color="#0a1022" roughness={0.9} metalness={0.18} /></mesh>
-      <mesh position={[0, 3.2, -3.6]}><boxGeometry args={[17, 11, 0.25]} /><meshStandardMaterial color="#111a34" roughness={0.82} metalness={0.12} /></mesh>
-      <mesh position={[-7.5, 0.4, -1.2]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#0d1831" roughness={1} /></mesh>
-      <mesh position={[7.5, 0.4, -1.2]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#15152f" roughness={1} /></mesh>
-      <gridHelper args={[16, 32, '#36c8f0', '#26365f']} position={[0, -2.42, -1.4]} />
-      <pointLight position={[-3, 5, 1]} intensity={13} distance={15} color="#46d9ff" />
-      <pointLight position={[4, 2, -2]} intensity={11} distance={12} color="#8a69ff" />
+      {/* A small open-front diorama: warm wood, cream plaster, and soft pastel details. */}
+      <mesh position={[0, -2.67, -1.45]}>
+        <boxGeometry args={[11.7, 0.42, 9.3]} />
+        <meshStandardMaterial color="#d5a16c" roughness={0.82} />
+      </mesh>
+      <mesh receiveShadow position={[0, -2.43, -1.45]}>
+        <boxGeometry args={[11.45, 0.12, 9.05]} />
+        <meshStandardMaterial color="#f0d2a4" roughness={0.78} />
+      </mesh>
+      {floorBoards.map((x, index) => (
+        <mesh key={index} receiveShadow position={[x, -2.355, -1.45]}>
+          <boxGeometry args={[0.68, 0.035, 8.85]} />
+          <meshStandardMaterial color={index % 2 ? '#c9905c' : '#d9a873'} roughness={0.88} />
+        </mesh>
+      ))}
+      {/* Visible miniature-box base and front floor edge. */}
+      <mesh position={[0, -2.98, -1.45]}>
+        <boxGeometry args={[12.35, 0.5, 9.95]} />
+        <meshStandardMaterial color="#a9713f" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, -2.72, 3.48]}>
+        <boxGeometry args={[12.1, 0.16, 0.22]} />
+        <meshStandardMaterial color="#8f5c31" roughness={0.78} />
+      </mesh>
+      {/* Back wall and short side walls leave the room open to the camera. */}
+      <mesh position={[0, 0.48, -5.78]}>
+        <boxGeometry args={[11.4, 5.85, 0.25]} />
+        <meshStandardMaterial color="#fff4e6" roughness={0.96} />
+      </mesh>
+      <mesh receiveShadow position={[-5.56, 0.48, -1.55]}>
+        <boxGeometry args={[0.24, 5.85, 8.55]} />
+        <meshStandardMaterial color="#f4e5d3" roughness={0.95} />
+      </mesh>
+      <mesh position={[5.56, 0.48, -1.55]}>
+        <boxGeometry args={[0.24, 5.85, 8.55]} />
+        <meshStandardMaterial color="#f7eadb" roughness={0.95} />
+      </mesh>
+      {/* Front corner posts and top rail frame the open face without closing it. */}
+      {[-5.62, 5.62].map((x) => (
+        <mesh key={`front-corner-${x}`} position={[x, 0.48, 2.68]}>
+          <boxGeometry args={[0.34, 5.95, 0.34]} />
+          <meshStandardMaterial color="#b77a48" roughness={0.74} />
+        </mesh>
+      ))}
+      <mesh position={[0, 3.48, 2.68]}>
+        <boxGeometry args={[11.6, 0.34, 0.34]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.74} />
+      </mesh>
+      {/* Timber frame and skirting make the room feel like a crafted miniature. */}
+      <mesh position={[0, 3.48, -5.77]}>
+        <boxGeometry args={[11.75, 0.38, 0.48]} />
+        <meshStandardMaterial color="#b77a48" roughness={0.76} />
+      </mesh>
+      <mesh position={[-5.52, 3.48, -1.55]}>
+        <boxGeometry args={[0.42, 0.38, 8.9]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.76} />
+      </mesh>
+      <mesh position={[5.52, 3.48, -1.55]}>
+        <boxGeometry args={[0.42, 0.38, 8.9]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.76} />
+      </mesh>
+      <mesh position={[0, -2.21, -5.61]}>
+        <boxGeometry args={[11.4, 0.3, 0.18]} />
+        <meshStandardMaterial color="#b77a48" roughness={0.8} />
+      </mesh>
+      {/* Restrained wall battens add depth without clutter. */}
+      {[-2.65, 1.35].map((x) => (
+        <mesh key={`batten-${x}`} position={[x, 0.48, -5.62]}>
+          <boxGeometry args={[0.14, 5.85, 0.1]} />
+          <meshStandardMaterial color="#e6d3ba" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* Window with a pale blue pane on the right side of the back wall. */}
+      <mesh position={[3.72, 1.02, -5.62]}>
+        <boxGeometry args={[1.65, 2.35, 0.12]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.72} />
+      </mesh>
+      <mesh position={[3.72, 1.02, -5.535]}>
+        <boxGeometry args={[1.42, 2.12, 0.045]} />
+        <meshStandardMaterial color="#cfe8f4" emissive="#9dcde5" emissiveIntensity={0.16} roughness={0.35} />
+      </mesh>
+      <mesh position={[3.72, 1.02, -5.49]}>
+        <boxGeometry args={[0.075, 2.12, 0.05]} />
+        <meshStandardMaterial color="#fff4e6" />
+      </mesh>
+      <mesh position={[3.72, 1.02, -5.49]}>
+        <boxGeometry args={[1.42, 0.075, 0.05]} />
+        <meshStandardMaterial color="#fff4e6" />
+      </mesh>
+      {/* Wall art adds a few readable, intentional focal points without clutter. */}
+      <mesh position={[-3.8, 1.7, -5.59]}>
+        <boxGeometry args={[1.35, 1.6, 0.12]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.65} />
+      </mesh>
+      <mesh position={[-3.8, 1.7, -5.51]}>
+        <boxGeometry args={[1.12, 1.36, 0.035]} />
+        <meshStandardMaterial color="#f4d8e7" roughness={0.8} />
+      </mesh>
+      <mesh position={[-3.8, 1.68, -5.48]}>
+        <boxGeometry args={[0.72, 0.12, 0.03]} />
+        <meshStandardMaterial color="#c48cbb" />
+      </mesh>
+      <mesh position={[-3.8, 1.42, -5.48]}>
+        <boxGeometry args={[0.46, 0.08, 0.03]} />
+        <meshStandardMaterial color="#9ebda4" />
+      </mesh>
+      {/* Wall-mounted skills sign above the workbench. */}
+      <group position={[-1.65, 2.2, -5.58]}>
+        <RoundedBox args={[2.1, 0.52, 0.1]} radius={0.07} smoothness={3}>
+          <meshStandardMaterial color="#fff8ef" roughness={0.55} />
+        </RoundedBox>
+        <Text position={[0, 0, 0.07]} fontSize={0.2} color="#7c5230" anchorX="center" anchorY="middle" letterSpacing={0.04}>
+          SKILLS & TOOLS
+        </Text>
+      </group>
+      <hemisphereLight args={['#fff6e9', '#9a684b', 1.25]} />
+      <directionalLight castShadow position={[-4, 7, 5]} intensity={1.8} color="#fff0d8" shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-camera-near={0.5} shadow-camera-far={22} shadow-bias={-0.00015} />
+      <pointLight position={[-3.5, 2.8, -1.8]} intensity={5.5} distance={10} color="#ffd5a1" />
+      <pointLight position={[3.5, 2.2, -2.5]} intensity={3.8} distance={8} color="#c7c2ff" />
     </>
   );
 }
 
-function IntroCube({ progress }) {
-  const ref = useRef();
-  useFrame((_, delta) => { if (ref.current) { ref.current.rotation.x += delta * 0.25; ref.current.rotation.y += delta * 0.5; ref.current.scale.lerp(new THREE.Vector3(Math.max(0.01, 1 - progress * 5), Math.max(0.01, 1 - progress * 5), Math.max(0.01, 1 - progress * 5)), 0.08); } });
-  return <group ref={ref} position={[0, 0.55, -1.8]}><RoundedBox args={[2.2, 2.2, 2.2]} radius={0.18} smoothness={4}><meshStandardMaterial color="#7a5cff" emissive="#563dff" emissiveIntensity={0.85} roughness={0.2} metalness={0.45} /></RoundedBox><Text position={[0, 0, 1.13]} fontSize={0.36} color="#ecfbff" anchorX="center" anchorY="middle">JS</Text></group>;
+function IntroCube() {
+  return (
+    <group position={[0, 2.63, -5.47]}>
+      <RoundedBox args={[3.7, 0.72, 0.16]} radius={0.09} smoothness={4}>
+        <meshStandardMaterial color="#fff8ef" roughness={0.55} metalness={0.08} />
+      </RoundedBox>
+      <Text position={[0, 0.05, 0.1]} fontSize={0.31} color="#a16dc0" anchorX="center" anchorY="middle" letterSpacing={0.035}>
+        JAZZ SAJONIA
+      </Text>
+      <Text position={[0, -0.22, 0.1]} fontSize={0.105} color="#9a7e6b" anchorX="center" anchorY="middle" letterSpacing={0.13}>
+        CREATIVE STUDIO
+      </Text>
+    </group>
+  );
 }
 
-function DeskAndSkills({ progress }) {
-  const reveal = Math.min(1, Math.max(0, (progress - 0.12) * 5));
-  return <group position={[-1.7, 0, -1.4]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, -1.1, 0]}><boxGeometry args={[4.4, 0.3, 2]} /><meshStandardMaterial color="#172542" roughness={0.45} metalness={0.3} /></mesh>
-    <mesh position={[-1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
-    <mesh position={[1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
-    <Float speed={1} rotationIntensity={0.08} floatIntensity={0.12}><group position={[-0.1, -0.72, 0.03]} rotation={[-0.1, 0.14, 0]}><boxGeometry args={[1.85, 0.14, 1.25]} /><meshStandardMaterial color="#17294f" emissive="#087da8" emissiveIntensity={0.25} /><Text position={[0, 0.1, 0.65]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.22} color="#eef7ff" anchorX="center" anchorY="middle">MY SKILLS</Text></group></Float>
-    <Text position={[0, 0.5, 0]} fontSize={0.23} color="#8ee8f7" anchorX="center" anchorY="middle" rotation={[0, 0.05, 0]}>WORKBENCH</Text>
-  </group>;
+function DeskAndSkills() {
+  return (
+    <group position={[-1.65, 0, -1.7]}>
+      {/* Wooden work table */}
+      <mesh castShadow receiveShadow position={[0, -1.12, 0]}>
+        <boxGeometry args={[3.75, 0.18, 1.75]} />
+        <meshStandardMaterial color="#d49a61" roughness={0.76} />
+      </mesh>
+      <mesh position={[-1.55, -1.72, -0.05]}>
+        <boxGeometry args={[0.16, 1.18, 1.42]} />
+        <meshStandardMaterial color="#f6e5cf" roughness={0.8} />
+      </mesh>
+      <mesh position={[1.55, -1.72, -0.05]}>
+        <boxGeometry args={[0.16, 1.18, 1.42]} />
+        <meshStandardMaterial color="#f6e5cf" roughness={0.8} />
+      </mesh>
+      {/* Keyboard and a small stack of books */}
+      <mesh position={[0.2, -0.99, 0.42]}>
+        <boxGeometry args={[1.12, 0.055, 0.34]} />
+        <meshStandardMaterial color="#f7f1e9" roughness={0.5} />
+      </mesh>
+      {/* Individual keycaps make the input area read as a keyboard at room scale. */}
+      {Array.from({ length: 3 }, (_, row) =>
+        Array.from({ length: 10 }, (_, column) => (
+          <mesh key={`key-${row}-${column}`} position={[-0.29 + column * 0.105, -0.953, 0.30 + row * 0.105]}>
+            <boxGeometry args={[0.078, 0.018, 0.065]} />
+            <meshStandardMaterial color={(row === 0 && column === 0) || (row === 2 && column === 9) ? '#e8a16e' : '#d8c9b8'} roughness={0.58} />
+          </mesh>
+        ))
+      )}
+      <mesh position={[0.99, -0.955, 0.42]} rotation={[0.08, 0, 0]}>
+        <capsuleGeometry args={[0.09, 0.14, 4, 8]} />
+        <meshStandardMaterial color="#f7f1e9" roughness={0.42} />
+      </mesh>
+      <mesh position={[0.99, -0.86, 0.42]}>
+        <boxGeometry args={[0.012, 0.045, 0.012]} />
+        <meshBasicMaterial color="#b77a48" />
+      </mesh>
+      {/* Desk nameplate keeps the portfolio identity in the physical room. */}
+      <group position={[-1.32, -0.93, 0.76]} rotation={[0, 0.12, 0]}>
+        <RoundedBox args={[0.72, 0.2, 0.05]} radius={0.03} smoothness={3}>
+          <meshStandardMaterial color="#49372f" roughness={0.6} />
+        </RoundedBox>
+        <Text position={[0, 0, 0.032]} fontSize={0.072} color="#fff4e6" anchorX="center" anchorY="middle" letterSpacing={0.03}>
+          JAZZ · BUILDS
+        </Text>
+      </group>
+      {/* Shallow drawer fronts and pulls give the workbench a crafted silhouette. */}
+      {[-0.68, 0.68].map((x) => (
+        <group key={x} position={[x, -1.31, 0.81]}>
+          <RoundedBox args={[0.82, 0.31, 0.07]} radius={0.035} smoothness={3}>
+            <meshStandardMaterial color="#bd804b" roughness={0.76} />
+          </RoundedBox>
+          <mesh position={[0, 0.015, 0.043]}>
+            <boxGeometry args={[0.19, 0.035, 0.025]} />
+            <meshStandardMaterial color="#e8c69d" metalness={0.22} roughness={0.4} />
+          </mesh>
+        </group>
+      ))}
+      {/* Compact speakers sit at either side of the monitor base. */}
+      {[-1.48, 1.48].map((x) => (
+        <group key={x} position={[x, -0.77, -0.47]}>
+          <RoundedBox args={[0.3, 0.46, 0.28]} radius={0.045} smoothness={3}>
+            <meshStandardMaterial color="#b9a5c9" roughness={0.68} />
+          </RoundedBox>
+          <mesh position={[0, 0.055, 0.146]}>
+            <circleGeometry args={[0.075, 16]} />
+            <meshStandardMaterial color="#6e5d7c" roughness={0.62} />
+          </mesh>
+          <mesh position={[0, -0.085, 0.146]}>
+            <circleGeometry args={[0.035, 16]} />
+            <meshStandardMaterial color="#e5d8ec" roughness={0.58} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[-1.2, -0.99, 0.3]} rotation={[0, 0.08, 0]}>
+        <boxGeometry args={[0.56, 0.12, 0.42]} />
+        <meshStandardMaterial color="#c6a2d6" roughness={0.82} />
+      </mesh>
+      <mesh position={[-1.2, -0.87, 0.3]} rotation={[0, -0.04, 0]}>
+        <boxGeometry args={[0.56, 0.1, 0.42]} />
+        <meshStandardMaterial color="#f2d4b3" roughness={0.82} />
+      </mesh>
+      {/* Potted desk plant */}
+      <mesh position={[1.35, -0.82, -0.38]}>
+        <cylinderGeometry args={[0.17, 0.22, 0.34, 12]} />
+        <meshStandardMaterial color="#d88c7e" roughness={0.8} />
+      </mesh>
+      <mesh position={[1.35, -0.52, -0.38]}>
+        <sphereGeometry args={[0.25, 12, 10]} />
+        <meshStandardMaterial color="#72a981" roughness={0.9} />
+      </mesh>
+      <mesh position={[1.2, -0.4, -0.42]} scale={[0.18, 0.34, 0.12]} rotation={[0, 0, -0.45]}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color="#8fc69a" roughness={0.9} />
+      </mesh>
+      <mesh position={[1.49, -0.36, -0.36]} scale={[0.16, 0.3, 0.11]} rotation={[0, 0, 0.4]}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color="#5f9a78" roughness={0.9} />      </mesh>
+      <RoundedBox position={[0, -0.88, -0.61]} args={[1.42, 0.32, 0.06]} radius={0.06} smoothness={3}>
+        <meshBasicMaterial color="#49372f" />
+      </RoundedBox>
+      <Text position={[0, -0.88, -0.565]} fontSize={0.15} color="#fff4e6" anchorX="center" anchorY="middle" letterSpacing={0.025}>
+        WORKBENCH
+      </Text>
+      {/* A compact stool tucked beneath the table */}
+      <mesh position={[0, -1.82, 1.3]}>
+        <cylinderGeometry args={[0.55, 0.58, 0.18, 16]} />
+        <meshStandardMaterial color="#c6a2d6" roughness={0.76} />
+      </mesh>
+      <mesh position={[0, -2.08, 1.3]}>
+        <cylinderGeometry args={[0.11, 0.14, 0.48, 10]} />
+        <meshStandardMaterial color="#f4e5d3" roughness={0.8} />
+      </mesh>
+    </group>
+  );
 }
 
-function Monitor({ progress, activeProject }) {
-  const reveal = Math.min(1, Math.max(0, (progress - 0.38) * 5));
-  return <group position={[2, 0.15, -1.5]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, -0.7, 0]}><boxGeometry args={[0.22, 1.4, 0.22]} /><meshStandardMaterial color="#40547e" emissive="#1f9bbd" emissiveIntensity={0.12} /></mesh>
-    <mesh position={[0, -1.45, 0]}><boxGeometry args={[2.7, 0.18, 1.05]} /><meshStandardMaterial color="#243657" metalness={0.35} /></mesh>
-    <mesh position={[0, 0.65, 0]}><boxGeometry args={[4.2, 2.6, 0.28]} /><meshStandardMaterial color="#182344" roughness={0.3} metalness={0.35} /></mesh>
-    <mesh position={[0, 0.65, 0.18]}><planeGeometry args={[3.72, 2.12]} /><meshBasicMaterial color="#0d1730" /></mesh>
-    <Text position={[0, 0.95, 0.34]} fontSize={0.3} color="#f3f7ff" anchorX="center" anchorY="middle">{activeProject.title}</Text>
-    <Text position={[0, 0.5, 0.34]} fontSize={0.12} color="#8bdcf6" anchorX="center" anchorY="middle">{activeProject.type}</Text>
-    <Text position={[0, 0.1, 0.34]} fontSize={0.09} color="#aab8d9" anchorX="center" anchorY="middle">SELECT A PROJECT BELOW</Text>
-    <mesh position={[0.7, -1.44, 0.36]}><boxGeometry args={[0.75, 0.04, 0.32]} /><meshStandardMaterial color="#8d5af0" emissive="#8d5af0" emissiveIntensity={0.8} /></mesh>
-  </group>;
+function Monitor({ activeProject }) {
+  return (
+    <group position={[-1.65, 0.28, -2.12]}>
+      <mesh position={[0, -1.05, 0]}>
+        <boxGeometry args={[0.18, 0.66, 0.16]} />
+        <meshStandardMaterial color="#d7b58e" metalness={0.18} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, -1.37, 0.08]}>
+        <boxGeometry args={[1.05, 0.12, 0.6]} />
+        <meshStandardMaterial color="#d7b58e" roughness={0.5} />
+      </mesh>
+      <RoundedBox castShadow receiveShadow position={[0, 0.05, 0]} args={[2.72, 1.82, 0.18]} radius={0.09} smoothness={4}>
+        <meshStandardMaterial color="#e8d8c8" roughness={0.48} metalness={0.12} />
+      </RoundedBox>
+      {/* A tiny webcam and lens detail break up the monitor's simple top edge. */}
+      <group position={[0, 0.99, 0.11]}>
+        <RoundedBox args={[0.34, 0.12, 0.12]} radius={0.045} smoothness={3}>
+          <meshStandardMaterial color="#594c4a" roughness={0.42} />
+        </RoundedBox>
+        <mesh position={[0, 0, 0.067]}>
+          <circleGeometry args={[0.032, 16]} />
+          <meshStandardMaterial color="#8ec8d5" emissive="#4c9cae" emissiveIntensity={0.28} />
+        </mesh>
+      </group>
+      <mesh position={[0, 0.05, 0.105]}>
+        <planeGeometry args={[2.48, 1.57]} />
+        <meshBasicMaterial color="#29364d" />
+      </mesh>
+      <mesh position={[0, 0.67, 0.12]}>
+        <boxGeometry args={[0.65, 0.055, 0.025]} />
+        <meshBasicMaterial color="#e8a5c7" />
+      </mesh>
+      <Text position={[0, 0.27, 0.13]} fontSize={0.21} color="#fff4e6" anchorX="center" anchorY="middle" maxWidth={2.2}>
+        {activeProject.title}
+      </Text>      <Text position={[0, -0.1, 0.13]} fontSize={0.09} color="#cbd8e9" anchorX="center" anchorY="middle" maxWidth={2.25}>
+        {activeProject.type}
+      </Text>
+      <mesh position={[0, -0.48, 0.13]}>
+        <boxGeometry args={[0.8, 0.045, 0.025]} />
+        <meshBasicMaterial color={activeProject.color} />
+      </mesh>
+      <Text position={[0, -0.69, 0.13]} fontSize={0.085} color="#b7c9de" anchorX="center" anchorY="middle" maxWidth={2.25}>
+        SELECT A PROJECT BELOW
+      </Text>
+    </group>
+  );
 }
 
-function ContactShelf({ progress }) {
-  const reveal = Math.min(1, Math.max(0, (progress - 0.68) * 4));
-  return <group position={[0, 2.05, -1.8]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, 0, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
-    <mesh position={[0, -1.8, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
-    <Text position={[-2.45, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">ABOUT</Text>
-    <Text position={[-0.8, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">EMAIL</Text>
-    <Text position={[0.85, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">GITHUB</Text>
-    <Text position={[2.45, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">LINKEDIN</Text>
-    <mesh position={[-2.45, -1.1, 0.15]}><boxGeometry args={[0.45, 0.45, 0.45]} /><meshStandardMaterial color="#83e2b3" emissive="#83e2b3" emissiveIntensity={0.3} /></mesh>
-    <mesh position={[-0.8, -1.1, 0.15]}><boxGeometry args={[0.45, 0.45, 0.45]} /><meshStandardMaterial color="#ff8b55" emissive="#ff8b55" emissiveIntensity={0.3} /></mesh>
-    <mesh position={[0.85, -1.1, 0.15]}><boxGeometry args={[0.45, 0.45, 0.45]} /><meshStandardMaterial color="#b89cff" emissive="#b89cff" emissiveIntensity={0.3} /></mesh>
-    <mesh position={[2.45, -1.1, 0.15]}><boxGeometry args={[0.45, 0.45, 0.45]} /><meshStandardMaterial color="#69c8ff" emissive="#69c8ff" emissiveIntensity={0.3} /></mesh>
-  </group>;
+function ContactShelf() {
+  return (
+    <group position={[1.35, 2.0, -5.38]}>
+      <mesh castShadow receiveShadow position={[0, 0.1, 0]}>
+        <boxGeometry args={[3.35, 0.14, 0.48]} />
+        <meshStandardMaterial color="#c58b55" roughness={0.75} />
+      </mesh>
+      <mesh position={[0, -1.18, 0]}>
+        <boxGeometry args={[3.35, 0.14, 0.48]} />
+        <meshStandardMaterial color="#c58b55" roughness={0.75} />
+      </mesh>
+      {/* Books */}
+      {[
+        [-1.2, 0.42, '#c6a2d6'], [-0.94, 0.35, '#f0c8a5'], [-0.69, 0.46, '#94b9a0'],
+        [0.28, -0.82, '#e9b0c7'], [0.54, -0.78, '#c6a2d6'], [0.8, -0.83, '#d7ad75']
+      ].map(([x, y, color], index) => (
+        <mesh key={index} position={[x, y, 0.02]} rotation={[0, 0, index % 2 ? 0.04 : -0.03]}>
+          <boxGeometry args={[0.19, 0.56, 0.24]} />
+          <meshStandardMaterial color={color} roughness={0.82} />
+        </mesh>
+      ))}
+      {/* Tiny keepsakes and plant pots */}
+      <mesh position={[1.14, 0.43, 0.02]}>
+        <cylinderGeometry args={[0.16, 0.2, 0.28, 12]} />
+        <meshStandardMaterial color="#f0c8a5" roughness={0.82} />
+      </mesh>
+      <mesh position={[1.14, 0.68, 0.02]} scale={[0.22, 0.28, 0.13]}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color="#75a985" roughness={0.9} />
+      </mesh>
+      <mesh position={[-1.5, -0.84, 0.02]}>
+        <boxGeometry args={[0.42, 0.42, 0.28]} />
+        <meshStandardMaterial color="#e9b0c7" roughness={0.7} />
+      </mesh>
+      <Text position={[0, -0.49, 0.27]} fontSize={0.16} color="#49372f" anchorX="center" anchorY="middle" letterSpacing={0.07}>
+        MAKE · LEARN · BUILD
+      </Text>
+    </group>
+  );
 }
 
 function RoomScene({ progress, activeProject }) {
-  return <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
-    <color attach="background" args={['#080d1c']} /><fog attach="fog" args={['#080d1c', 8, 19]} />
-    <ambientLight intensity={1.15} /><RoomShell /><IntroCube progress={progress} /><DeskAndSkills progress={progress} /><Monitor progress={progress} activeProject={activeProject} /><ContactShelf progress={progress} /><CameraPath progress={progress} />
-  </Canvas>;
+  return (
+    <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.25]} shadows gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
+      <mesh position={[0, 0, -9]}>
+        <planeGeometry args={[200, 200]} />
+        <shaderMaterial
+          vertexShader={`varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`}
+          fragmentShader={`varying vec2 vUv; void main() { vec3 top = vec3(0.97, 0.62, 0.29); vec3 bottom = vec3(1.0, 0.82, 0.51); float blend = smoothstep(0.0, 1.0, vUv.y); gl_FragColor = vec4(mix(bottom, top, blend), 1.0); }`}
+          depthWrite={false}
+        />
+      </mesh>
+      <fog attach="fog" args={['#f8b15f', 19, 38]} />
+      <ambientLight intensity={0.65} />
+      <ContactShadows position={[0, -2.36, -1.45]} opacity={0.24} scale={10} blur={2.4} far={5} resolution={256} color="#68452d" />
+      <RoomShell />
+      <IntroCube />
+      <DeskAndSkills />
+      <Monitor activeProject={activeProject} />
+      <ContactShelf />
+      <CameraPath progress={progress} />
+    </Canvas>
+  );
 }
 
 export default function ScrollRoomPortfolio() {

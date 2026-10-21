@@ -2,13 +2,14 @@
 
 | Area | Status |
 | --- | --- |
-| Scroll-driven 3D room | Implemented with React Three Fiber, procedural room geometry, dark neon palette, and a smooth camera path driven by page scroll |
-| Story checkpoints | Implemented: intro cube, skills workbench, project monitor/card, and contact shelf |
-| Project selection | Implemented with previous/next project controls, selected-project details, GitHub/live links, and case-study links |
-| Existing project media | Reused from the source portfolio under `public/projects/` |
-| Vercel production build | Neon refresh deployed successfully; Production deployment reached READY. Local `npm run lint` was not rerun in this environment. |
-| Desktop browser review | Prior scroll-room states verified; latest neon palette has not been independently visually reviewed in a browser |
-| Real phone review | Not tested |
-| Production deployment | READY from merged `main` commit `ea5d53f`; SSO protection remains enabled. |
+| Scroll-driven 3D room | Warm miniature room retained; camera framing, contact shadows, and in-room label contrast refined in PR #4. |
+| Workstation detail | Added individual keyboard keycaps, a mouse, drawer fronts and pulls, compact speakers, and a webcam on the monitor (commit `89c8b92`, syntax fix `427facf`). |
+| Story checkpoints | Implemented: intro cube, skills workbench, project monitor/card, and contact shelf. |
+| Project selection | Previous/next controls update the HTML project card and 3D monitor; keyboard-accessible button labels remain present. |
+| Lint/build | CI run #21 passed `npm ci`, `npm run lint`, and `npm run build` for the corrected workstation code; CI run #22 passed for docs checkpoint `eb6cfba`; and CI run #23 passed for checkpoint `c0bdabe`. |
+| Vercel preview | The protected preview HTML fetch returned HTTP 200 for `https://portfolio3d-i1fobvz7a-chrono8.vercel.app/`, including the expected page title and client bundle references. The Vercel deployment-list API still returns 403 for team `chrono8`; HTML retrieval is not an interactive browser render, so no visual verification is claimed for the latest camera or workstation changes. |
+| Responsive browser review | 1440 × 900, 1280 × 720, 768 × 1024, and 390 × 844 are still untested. |
+| Real phone review | Not tested; scroll/touch feel and WebGL performance remain unverified. |
+| Production deployment | No merge or production deployment has been performed; the warm-room branch remains in PR #4. |
 
-The lint check also passes with only the copied archive's existing `no-img-element` warnings. A real phone performance test has not been performed.
+The independent QA report remains the baseline assessment of the earlier preview checkpoint. The latest workstation additions are code changes only until CI passes and the protected preview can be visually inspected.

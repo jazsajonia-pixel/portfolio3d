@@ -1,18 +1,18 @@
 # Portfolio3D
 
-An interactive 3D portfolio for Jazz Sajonia, reworked as a dark neon studio with cyan/violet lighting, scroll-driven camera movement, a skills workbench, project monitor, and contact shelf.
+An interactive 3D portfolio for Jazz Sajonia, with a scroll-driven miniature studio room. The room-scene refresh in PR #4 moves toward the supplied reference: cream walls, warm wood, small desk details, plants, shelves, and a warm orange gradient backdrop.
 
 ## Current status
 
 | Area | Status |
 | --- | --- |
-| Scroll-driven 3D room and procedural set | Implemented |
+| Scroll-driven 3D room and procedural set | Implemented; warm miniature-room refresh in PR #4 pending CI/preview verification |
 | Intro, skills, projects, and contact checkpoints | Implemented |
 | Project carousel, case-study links, and GitHub/live links | Implemented |
 | GIF previews and project data | Reused from the main Portfolio repo |
-| Vercel production build | READY for merged neon studio commit; local lint not rerun in this environment |
+| Vercel production build | Previous main build is READY; PR #4 CI/preview is pending |
 | Real phone performance testing | Not tested |
-| Production deployment | Vercel deployment `dpl_FFkntqSRpKvug6RTVToJso6UpuTY` is READY |
+| Production deployment | Existing main deployment remains READY; this room refresh is not merged or in production |
 
 ## Stack
 
@@ -29,4 +29,4 @@ Open `http://localhost:3000`. The project is configured for static export and us
 
 ## Design direction
 
-This is intentionally not a copy of the main Portfolio site. The visual direction is a deep-ink neon studio with cyan and violet accent lighting, dark glass-like project cards, high-contrast overlay text, and a camera path that follows scroll instead of relying on a free-orbit poster gallery. The WebGL pixel-ratio ceiling is capped at 1.25 to help mid-range devices.
+This is intentionally separate from the main Portfolio site. The room is being refined as a warm, open-front miniature studio inspired by the supplied reference, with cream plaster walls, timber framing, plank flooring, a desk and monitor, wall art, shelves, books, and plants. The existing HTML overlays, page layout, and global CSS are deliberately untouched in PR #4; this pass is limited to the 3D room scene. The WebGL pixel-ratio ceiling remains capped at 1.25 to help mid-range devices.
