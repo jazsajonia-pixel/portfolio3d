@@ -2,7 +2,7 @@
 
 ## Current experiment
 
-Build a scroll-driven room-style interactive portfolio inspired by the reference showcase at `https://shahbaj-sheikh.vercel.app/`. The current experience uses procedural geometry rather than a downloaded model so the project remains small, editable, and easier to test on a phone. Scroll progress moves the camera through four story checkpoints: intro cube, skills workbench, project monitor, and contact shelf.
+Build a scroll-driven room-style interactive portfolio inspired by the reference showcase at `https://shahbaj-sheikh.vercel.app/`. The current experience uses procedural geometry rather than a downloaded model so the project remains small, editable, and easier to test on a phone. The latest design pass shifts the room to a deep-ink neon studio with cyan/violet lighting, dark high-contrast UI overlays, and a reduced WebGL pixel-ratio ceiling. Scroll progress moves the camera through four story checkpoints: intro cube, skills workbench, project monitor, and contact shelf.
 
 ## Next increments
 
