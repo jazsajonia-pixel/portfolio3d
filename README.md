@@ -10,9 +10,9 @@ An interactive 3D portfolio for Jazz Sajonia, reworked as a dark neon studio wit
 | Intro, skills, projects, and contact checkpoints | Implemented |
 | Project carousel, case-study links, and GitHub/live links | Implemented |
 | GIF previews and project data | Reused from the main Portfolio repo |
-| Build/lint verification | Awaiting current PR checks |
+| Vercel production build | READY for merged neon studio commit; local lint not rerun in this environment |
 | Real phone performance testing | Not tested |
-| Vercel preview | Triggered for `feat/reference-neon-studio`; status pending |
+| Production deployment | Vercel deployment `dpl_FFkntqSRpKvug6RTVToJso6UpuTY` is READY |
 
 ## Stack
 
