@@ -27,6 +27,14 @@ function CameraPath({ progress }) {
   const { camera } = useThree();
   const current = useRef(new THREE.Vector3(0, 1.2, 10));
   const look = useRef(new THREE.Vector3(0, 1, 0));
+  const reducedMotion = useRef(false);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => { reducedMotion.current = media.matches; };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const targets = useMemo(() => [
     { position: new THREE.Vector3(0, 1.5, 11), look: new THREE.Vector3(0, 1, 0) },
     { position: new THREE.Vector3(-3.4, 2.2, 7.2), look: new THREE.Vector3(-1.6, 1.3, -1.2) },
@@ -40,8 +48,13 @@ function CameraPath({ progress }) {
     const blend = scaled - index;
     const destination = targets[index].position.clone().lerp(targets[next].position, blend);
     const destinationLook = targets[index].look.clone().lerp(targets[next].look, blend);
-    current.current.lerp(destination, 1 - Math.pow(0.0008, delta));
-    look.current.lerp(destinationLook, 1 - Math.pow(0.0008, delta));
+    if (reducedMotion.current) {
+      current.current.copy(destination);
+      look.current.copy(destinationLook);
+    } else {
+      current.current.lerp(destination, 1 - Math.pow(0.0008, delta));
+      look.current.lerp(destinationLook, 1 - Math.pow(0.0008, delta));
+    }
     camera.position.copy(current.current);
     camera.lookAt(look.current);
   });
@@ -71,11 +84,11 @@ function IntroCube({ progress }) {
 function DeskAndSkills({ progress }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.12) * 5));
   return <group position={[-1.7, 0, -1.4]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, -1.1, 0]}><boxGeometry args={[4.4, 0.3, 2]} /><meshStandardMaterial color="#ad5a39" roughness={0.65} /></mesh>
-    <mesh position={[-1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#ba6740" /></mesh>
-    <mesh position={[1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#ba6740" /></mesh>
+    <mesh position={[0, -1.1, 0]}><boxGeometry args={[4.4, 0.3, 2]} /><meshStandardMaterial color="#172542" roughness={0.45} metalness={0.3} /></mesh>
+    <mesh position={[-1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
+    <mesh position={[1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
     <Float speed={1} rotationIntensity={0.08} floatIntensity={0.12}><group position={[-0.1, -0.72, 0.03]} rotation={[-0.1, 0.14, 0]}><boxGeometry args={[1.85, 0.14, 1.25]} /><meshStandardMaterial color="#17294f" emissive="#087da8" emissiveIntensity={0.25} /><Text position={[0, 0.1, 0.65]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.22} color="#eef7ff" anchorX="center" anchorY="middle">MY SKILLS</Text></group></Float>
-    <Text position={[0, 0.5, 0]} fontSize={0.23} color="#2a3b70" anchorX="center" anchorY="middle" rotation={[0, 0.05, 0]}>WORKBENCH</Text>
+    <Text position={[0, 0.5, 0]} fontSize={0.23} color="#8ee8f7" anchorX="center" anchorY="middle" rotation={[0, 0.05, 0]}>WORKBENCH</Text>
   </group>;
 }
 
@@ -83,7 +96,7 @@ function Monitor({ progress, activeProject }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.38) * 5));
   return <group position={[2, 0.15, -1.5]} scale={[reveal, reveal, reveal]}>
     <mesh position={[0, -0.7, 0]}><boxGeometry args={[0.22, 1.4, 0.22]} /><meshStandardMaterial color="#40547e" emissive="#1f9bbd" emissiveIntensity={0.12} /></mesh>
-    <mesh position={[0, -1.45, 0]}><boxGeometry args={[2.7, 0.18, 1.05]} /><meshStandardMaterial color="#dbe5ec" /></mesh>
+    <mesh position={[0, -1.45, 0]}><boxGeometry args={[2.7, 0.18, 1.05]} /><meshStandardMaterial color="#243657" metalness={0.35} /></mesh>
     <mesh position={[0, 0.65, 0]}><boxGeometry args={[4.2, 2.6, 0.28]} /><meshStandardMaterial color="#182344" roughness={0.3} metalness={0.35} /></mesh>
     <mesh position={[0, 0.65, 0.18]}><planeGeometry args={[3.72, 2.12]} /><meshBasicMaterial color="#0d1730" /></mesh>
     <Text position={[0, 0.95, 0.34]} fontSize={0.3} color="#f3f7ff" anchorX="center" anchorY="middle">{activeProject.title}</Text>
@@ -97,7 +110,7 @@ function ContactShelf({ progress }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.68) * 4));
   return <group position={[0, 2.05, -1.8]} scale={[reveal, reveal, reveal]}>
     <mesh position={[0, 0, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
-    <mesh position={[0, -1.8, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#a55b3c" /></mesh>
+    <mesh position={[0, -1.8, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
     <Text position={[-2.45, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">ABOUT</Text>
     <Text position={[-0.8, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">EMAIL</Text>
     <Text position={[0.85, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">GITHUB</Text>
@@ -123,8 +136,18 @@ export default function ScrollRoomPortfolio() {
   const activeProject = projects[projectIndex];
   const sceneIndex = Math.min(3, Math.floor(progress * 4.01));
   useEffect(() => {
-    const update = () => { const max = document.documentElement.scrollHeight - window.innerHeight; setProgress(max ? window.scrollY / max : 0); setReady(true); };
-    update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update); return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+    let frame = 0;
+    const update = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        setProgress(max ? window.scrollY / max : 0);
+        setReady(true);
+      });
+    };
+    update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update);
+    return () => { if (frame) window.cancelAnimationFrame(frame); window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, []);
   return <div className="scroll-room-page">
     <div className="scroll-room-stage"><RoomScene progress={progress} activeProject={activeProject} /></div>
