@@ -2,11 +2,11 @@
 
 ## Current experiment
 
-Build a scroll-driven room-style interactive portfolio inspired by the reference showcase at `https://shahbaj-sheikh.vercel.app/`. The current experience uses procedural geometry rather than a downloaded model so the project remains small, editable, and easier to test on a phone. The latest design pass shifts the room to a deep-ink neon studio with cyan/violet lighting, dark high-contrast UI overlays, and a reduced WebGL pixel-ratio ceiling. Scroll progress moves the camera through four story checkpoints: intro cube, skills workbench, project monitor, and contact shelf.
+A box-opening miniature-room tour inspired by the reference showcase at `https://shahbaj-sheikh.vercel.app/` and the screen recording committed to the repo root. The brief is `docs/BOX-OPENING-ROOM-TOUR-PROMPT.md`. Procedural geometry keeps the project small and easy to test on a phone.
 
 ## Next increments
 
-1. Validate camera feel and frame rate on Jazz's phone.
-2. Add authored low-poly GLTF props only if they improve the room without hurting load time.
-3. Add a focused project preview image inside the monitor card while keeping the complete archive accessible.
-4. Merge the CI branch/feature PRs only after checks are green, then deploy the scroll version to Vercel.
+1. Real-phone pass: scroll feel, touch targets, frame rate (PR #6).
+2. Merge PR #6 only after CI and the Vercel preview pass and Jazz approves.
+3. Optionally show a lightweight still of each project on the monitor if it does not hurt phone memory.
+4. Add authored low-poly GLTF props only if they improve the room without hurting load time.
