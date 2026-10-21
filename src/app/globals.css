@@ -59,3 +59,114 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .scroll-room-loading { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; background: #f8b35f; color: var(--ink); font: 12px 'DM Mono', monospace; }
 @media (max-width: 700px) { .scroll-room-header { padding: 16px 18px; } .scroll-room-logo strong { display: none; } .scroll-room-contact { font-size: 11px; } .scroll-room-progress { top: 28px; width: 30vw; } .scroll-room-intro { padding-top: 145px; } .scroll-room-intro h1 { font-size: clamp(46px, 14vw, 74px); } .scroll-room-intro p { font-size: 14px; } .scroll-room-copy { padding-top: 24vh; } .scroll-room-skills-copy { padding-top: 31vh; } .scroll-room-project-copy { padding-top: 18vh; } .scroll-room-contact-copy { padding-top: 26vh; } .scroll-room-copy h2 { font-size: clamp(38px, 12vw, 62px); } .scroll-room-project-card { width: min(350px, 100%); padding: 17px; } }
 @media (prefers-reduced-motion: reduce) { .scroll-room-progress span { transition: none; } }
+
+
+/* Neon studio refresh: dark, high-contrast UI layered over the 3D room. */
+:root {
+  color-scheme: dark;
+  --ink: #edf4ff;
+  --paper: #101a31;
+  --blue: #55d8f5;
+  --orange: #a78bfa;
+  --green: #67e8cf;
+}
+html, body { background: #080d1c; color: #edf4ff; }
+.scroll-room-page {
+  background:
+    radial-gradient(ellipse at 74% 15%, rgba(67, 56, 202, .23), transparent 36%),
+    radial-gradient(ellipse at 14% 52%, rgba(6, 182, 212, .13), transparent 34%),
+    linear-gradient(180deg, #080d1c 0%, #0b1327 34%, #10152d 66%, #080d1c 100%);
+}
+.scroll-room-header {
+  padding-top: max(18px, env(safe-area-inset-top));
+  color: #f3f7ff;
+  background: linear-gradient(180deg, rgba(8, 13, 28, .88), rgba(8, 13, 28, .2));
+  backdrop-filter: blur(12px);
+}
+.scroll-room-logo span {
+  border-color: rgba(103, 232, 249, .8);
+  background: linear-gradient(145deg, rgba(34, 211, 238, .15), rgba(139, 92, 246, .22));
+  box-shadow: 0 0 22px rgba(34, 211, 238, .12), inset 0 0 12px rgba(139, 92, 246, .12);
+}
+.scroll-room-progress { background: rgba(148, 163, 184, .25); }
+.scroll-room-progress span { background: linear-gradient(90deg, #22d3ee, #a78bfa); box-shadow: 0 0 12px rgba(34, 211, 238, .5); }
+.scroll-room-progress small { color: #aab9d5; }
+.scroll-room-contact { min-height: 48px; align-items: center; border-bottom-color: #67e8f9; color: #e9faff; }
+.scroll-room-kicker { color: #8ee8f7; }
+.scroll-room-intro h1 { color: #f3f7ff; text-shadow: 0 8px 40px rgba(0, 0, 0, .2); }
+.scroll-room-intro h1 em {
+  background: linear-gradient(100deg, #67e8f9 0%, #a78bfa 55%, #f0abfc 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.scroll-room-intro p, .scroll-room-copy > p { color: #c0cbe0; }
+.scroll-room-scroll-hint { color: #9beafa; }
+.scroll-room-copy h2 { color: #f1f5ff; }
+.scroll-room-skill-list span {
+  min-height: 40px;
+  border-color: rgba(148, 163, 184, .25);
+  background: rgba(15, 27, 51, .72);
+  color: #e1eaff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  backdrop-filter: blur(8px);
+}
+.scroll-room-project-card {
+  border: 1px solid rgba(103, 232, 249, .35);
+  border-radius: 10px 24px 14px 10px;
+  background: linear-gradient(145deg, rgba(20, 32, 58, .96), rgba(12, 20, 39, .96));
+  color: #f3f7ff;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .3), 0 0 35px rgba(34, 211, 238, .08), inset 0 1px 0 rgba(255,255,255,.07);
+  transform: none;
+  backdrop-filter: blur(14px);
+}
+.scroll-room-project-top { color: #a9b8d4; }
+.scroll-room-project-card h3 { color: #f3f7ff; }
+.scroll-room-project-type { color: #aab9d5; }
+.scroll-room-project-card p { color: #c7d2e7; }
+.scroll-room-project-stack { color: #83e7f7; }
+.scroll-room-project-actions a, .scroll-room-contact-links a {
+  min-height: 48px;
+  border-radius: 999px;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.scroll-room-project-actions a:first-child {
+  background: linear-gradient(105deg, #0891b2, #6366f1);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, .22);
+}
+.scroll-room-project-actions a:not(:first-child), .scroll-room-contact-links a {
+  border-color: rgba(148, 163, 184, .32);
+  background: rgba(23, 37, 64, .72);
+  color: #e7efff;
+}
+.scroll-room-project-nav button {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(103, 232, 249, .48);
+  background: rgba(16, 26, 49, .9);
+  color: #e9faff;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .22);
+}
+.scroll-room-project-nav button:hover, .scroll-room-project-nav button:focus-visible {
+  background: #164e63;
+  color: #fff;
+}
+.scroll-room-archive-link { min-height: 48px; border-bottom-color: #67e8f9; color: #baf5ff; }
+.scroll-room-loading { background: #080d1c; color: #d9e8ff; }
+.scroll-room-contact-copy { padding-bottom: max(8vh, env(safe-area-inset-bottom)); }
+.scroll-room-contact-links a:hover, .scroll-room-project-actions a:hover { transform: translateY(-2px); border-color: #67e8f9; }
+.scroll-room-project-nav button:active, .scroll-room-contact-links a:active, .scroll-room-project-actions a:active { transform: scale(.97); }
+:focus-visible { outline-color: #67e8f9; outline-offset: 4px; }
+::selection { background: #155e75; color: #f8fbff; }
+@media (max-width: 700px) {
+  .scroll-room-header { padding: max(12px, env(safe-area-inset-top)) 16px 12px; }
+  .scroll-room-logo span { width: 40px; height: 40px; }
+  .scroll-room-contact { min-height: 48px; }
+  .scroll-room-intro { padding-top: max(145px, 18svh); }
+  .scroll-room-project-card { width: min(350px, 100%); }
+  .scroll-room-copy { padding-bottom: 12vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-room-project-actions a, .scroll-room-contact-links a { transition: none; }
+}
