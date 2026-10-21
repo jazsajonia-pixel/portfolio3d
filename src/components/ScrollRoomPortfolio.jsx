@@ -217,7 +217,7 @@ function DeskAndSkills() {
             <meshStandardMaterial color="#e8c69d" metalness={0.22} roughness={0.4} />
           </mesh>
         </group>
-      )}
+      ))}
       {/* Compact speakers sit at either side of the monitor base. */}
       {[-1.48, 1.48].map((x) => (
         <group key={x} position={[x, -0.77, -0.47]}>
@@ -233,7 +233,7 @@ function DeskAndSkills() {
             <meshStandardMaterial color="#e5d8ec" roughness={0.58} />
           </mesh>
         </group>
-      )}
+      ))}
       <mesh position={[-1.2, -0.99, 0.3]} rotation={[0, 0.08, 0]}>
         <boxGeometry args={[0.56, 0.12, 0.42]} />
         <meshStandardMaterial color="#c6a2d6" roughness={0.82} />
@@ -257,8 +257,7 @@ function DeskAndSkills() {
       </mesh>
       <mesh position={[1.49, -0.36, -0.36]} scale={[0.16, 0.3, 0.11]} rotation={[0, 0, 0.4]}>
         <sphereGeometry args={[1, 12, 10]} />
-        <meshStandardMaterial color="#5f9a78" roughness={0.9} />
-      </mesh>
+        <meshStandardMaterial color="#5f9a78" roughness={0.9} />      </mesh>
       <RoundedBox position={[0, -0.88, -0.61]} args={[1.42, 0.32, 0.06]} radius={0.06} smoothness={3}>
         <meshBasicMaterial color="#49372f" />
       </RoundedBox>
