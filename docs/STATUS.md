@@ -6,9 +6,9 @@
 | Story checkpoints | Implemented: intro cube, skills workbench, project monitor/card, and contact shelf |
 | Project selection | Implemented with previous/next project controls, selected-project details, GitHub/live links, and case-study links |
 | Existing project media | Reused from the source portfolio under `public/projects/` |
-| Static build | Previously verified on the prior main checkpoint; current neon refresh build pending |
-| Desktop browser review | Prior scroll-room states verified; current neon refresh awaits preview visual review |
+| Vercel production build | Neon refresh deployed successfully; Production deployment reached READY. Local `npm run lint` was not rerun in this environment. |
+| Desktop browser review | Prior scroll-room states verified; latest neon palette has not been independently visually reviewed in a browser |
 | Real phone review | Not tested |
-| Vercel preview | Triggered for `feat/reference-neon-studio`; current deployment state pending. Production remains on prior `main` checkpoint until PR merge. |
+| Production deployment | READY from merged `main` commit `ea5d53f`; SSO protection remains enabled. |
 
 The lint check also passes with only the copied archive's existing `no-img-element` warnings. A real phone performance test has not been performed.
