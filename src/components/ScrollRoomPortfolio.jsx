@@ -80,6 +80,15 @@ function RoomShell() {
           <meshStandardMaterial color={index % 2 ? '#c9905c' : '#d9a873'} roughness={0.88} />
         </mesh>
       ))}
+      {/* Visible miniature-box base and front floor edge. */}
+      <mesh position={[0, -2.98, -1.45]}>
+        <boxGeometry args={[12.35, 0.5, 9.95]} />
+        <meshStandardMaterial color="#a9713f" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, -2.72, 3.48]}>
+        <boxGeometry args={[12.1, 0.16, 0.22]} />
+        <meshStandardMaterial color="#8f5c31" roughness={0.78} />
+      </mesh>
       {/* Back wall and short side walls leave the room open to the camera. */}
       <mesh position={[0, 0.48, -5.78]}>
         <boxGeometry args={[11.4, 5.85, 0.25]} />
@@ -92,6 +101,17 @@ function RoomShell() {
       <mesh position={[5.56, 0.48, -1.55]}>
         <boxGeometry args={[0.24, 5.85, 8.55]} />
         <meshStandardMaterial color="#f7eadb" roughness={0.95} />
+      </mesh>
+      {/* Front corner posts and top rail frame the open face without closing it. */}
+      {[-5.62, 5.62].map((x) => (
+        <mesh key={`front-corner-${x}`} position={[x, 0.48, 2.68]}>
+          <boxGeometry args={[0.34, 5.95, 0.34]} />
+          <meshStandardMaterial color="#b77a48" roughness={0.74} />
+        </mesh>
+      ))}
+      <mesh position={[0, 3.48, 2.68]}>
+        <boxGeometry args={[11.6, 0.34, 0.34]} />
+        <meshStandardMaterial color="#c18a55" roughness={0.74} />
       </mesh>
       {/* Timber frame and skirting make the room feel like a crafted miniature. */}
       <mesh position={[0, 3.48, -5.77]}>
@@ -110,6 +130,13 @@ function RoomShell() {
         <boxGeometry args={[11.4, 0.3, 0.18]} />
         <meshStandardMaterial color="#b77a48" roughness={0.8} />
       </mesh>
+      {/* Restrained wall battens add depth without clutter. */}
+      {[-2.65, 1.35].map((x) => (
+        <mesh key={`batten-${x}`} position={[x, 0.48, -5.62]}>
+          <boxGeometry args={[0.14, 5.85, 0.1]} />
+          <meshStandardMaterial color="#e6d3ba" roughness={0.9} />
+        </mesh>
+      ))}
       {/* Window with a pale blue pane on the right side of the back wall. */}
       <mesh position={[3.72, 1.02, -5.62]}>
         <boxGeometry args={[1.65, 2.35, 0.12]} />
@@ -144,6 +171,15 @@ function RoomShell() {
         <boxGeometry args={[0.46, 0.08, 0.03]} />
         <meshStandardMaterial color="#9ebda4" />
       </mesh>
+      {/* Wall-mounted skills sign above the workbench. */}
+      <group position={[-1.65, 2.2, -5.58]}>
+        <RoundedBox args={[2.1, 0.52, 0.1]} radius={0.07} smoothness={3}>
+          <meshStandardMaterial color="#fff8ef" roughness={0.55} />
+        </RoundedBox>
+        <Text position={[0, 0, 0.07]} fontSize={0.2} color="#7c5230" anchorX="center" anchorY="middle" letterSpacing={0.04}>
+          SKILLS & TOOLS
+        </Text>
+      </group>
       <hemisphereLight args={['#fff6e9', '#9a684b', 1.25]} />
       <directionalLight castShadow position={[-4, 7, 5]} intensity={1.8} color="#fff0d8" shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-camera-near={0.5} shadow-camera-far={22} shadow-bias={-0.00015} />
       <pointLight position={[-3.5, 2.8, -1.8]} intensity={5.5} distance={10} color="#ffd5a1" />
@@ -206,6 +242,15 @@ function DeskAndSkills() {
         <boxGeometry args={[0.012, 0.045, 0.012]} />
         <meshBasicMaterial color="#b77a48" />
       </mesh>
+      {/* Desk nameplate keeps the portfolio identity in the physical room. */}
+      <group position={[-1.32, -0.93, 0.76]} rotation={[0, 0.12, 0]}>
+        <RoundedBox args={[0.72, 0.2, 0.05]} radius={0.03} smoothness={3}>
+          <meshStandardMaterial color="#49372f" roughness={0.6} />
+        </RoundedBox>
+        <Text position={[0, 0, 0.032]} fontSize={0.072} color="#fff4e6" anchorX="center" anchorY="middle" letterSpacing={0.03}>
+          JAZZ · BUILDS
+        </Text>
+      </group>
       {/* Shallow drawer fronts and pulls give the workbench a crafted silhouette. */}
       {[-0.68, 0.68].map((x) => (
         <group key={x} position={[x, -1.31, 0.81]}>
