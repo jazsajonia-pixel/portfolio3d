@@ -144,7 +144,6 @@ function RoomShell() {
         <boxGeometry args={[0.46, 0.08, 0.03]} />
         <meshStandardMaterial color="#9ebda4" />
       </mesh>
-      <gridHelper args={[8.8, 22, '#d6b18a', '#e5c8a7']} position={[0, -2.33, -1.45]} />
       <hemisphereLight args={['#fff6e9', '#9a684b', 1.25]} />
       <directionalLight position={[-4, 7, 5]} intensity={2.1} color="#fff0d8" />
       <pointLight position={[-3.5, 2.8, -1.8]} intensity={5.5} distance={10} color="#ffd5a1" />
