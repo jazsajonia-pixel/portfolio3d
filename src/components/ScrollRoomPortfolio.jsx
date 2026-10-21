@@ -27,6 +27,14 @@ function CameraPath({ progress }) {
   const { camera } = useThree();
   const current = useRef(new THREE.Vector3(0, 1.2, 10));
   const look = useRef(new THREE.Vector3(0, 1, 0));
+  const reducedMotion = useRef(false);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => { reducedMotion.current = media.matches; };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const targets = useMemo(() => [
     { position: new THREE.Vector3(0, 1.5, 11), look: new THREE.Vector3(0, 1, 0) },
     { position: new THREE.Vector3(-3.4, 2.2, 7.2), look: new THREE.Vector3(-1.6, 1.3, -1.2) },
@@ -40,8 +48,13 @@ function CameraPath({ progress }) {
     const blend = scaled - index;
     const destination = targets[index].position.clone().lerp(targets[next].position, blend);
     const destinationLook = targets[index].look.clone().lerp(targets[next].look, blend);
-    current.current.lerp(destination, 1 - Math.pow(0.0008, delta));
-    look.current.lerp(destinationLook, 1 - Math.pow(0.0008, delta));
+    if (reducedMotion.current) {
+      current.current.copy(destination);
+      look.current.copy(destinationLook);
+    } else {
+      current.current.lerp(destination, 1 - Math.pow(0.0008, delta));
+      look.current.lerp(destinationLook, 1 - Math.pow(0.0008, delta));
+    }
     camera.position.copy(current.current);
     camera.lookAt(look.current);
   });
@@ -51,13 +64,13 @@ function CameraPath({ progress }) {
 function RoomShell() {
   return (
     <>
-      <mesh position={[0, -2.45, -1.4]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[17, 14]} /><meshStandardMaterial color="#f4b45c" roughness={0.9} /></mesh>
-      <mesh position={[0, 3.2, -3.6]}><boxGeometry args={[17, 11, 0.25]} /><meshStandardMaterial color="#ef784b" roughness={1} /></mesh>
-      <mesh position={[-7.5, 0.4, -1.2]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#ffd26f" roughness={1} /></mesh>
-      <mesh position={[7.5, 0.4, -1.2]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#f59c4d" roughness={1} /></mesh>
-      <gridHelper args={[16, 16, '#de7848', '#f7c36a']} position={[0, -2.42, -1.4]} />
-      <pointLight position={[-3, 5, 1]} intensity={20} distance={15} color="#fff2c5" />
-      <pointLight position={[4, 2, -2]} intensity={13} distance={12} color="#a998ff" />
+      <mesh position={[0, -2.45, -1.4]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[17, 14]} /><meshStandardMaterial color="#0a1022" roughness={0.9} metalness={0.18} /></mesh>
+      <mesh position={[0, 3.2, -3.6]}><boxGeometry args={[17, 11, 0.25]} /><meshStandardMaterial color="#111a34" roughness={0.82} metalness={0.12} /></mesh>
+      <mesh position={[-7.5, 0.4, -1.2]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#0d1831" roughness={1} /></mesh>
+      <mesh position={[7.5, 0.4, -1.2]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[13, 11]} /><meshStandardMaterial color="#15152f" roughness={1} /></mesh>
+      <gridHelper args={[16, 32, '#36c8f0', '#26365f']} position={[0, -2.42, -1.4]} />
+      <pointLight position={[-3, 5, 1]} intensity={13} distance={15} color="#46d9ff" />
+      <pointLight position={[4, 2, -2]} intensity={11} distance={12} color="#8a69ff" />
     </>
   );
 }
@@ -65,30 +78,30 @@ function RoomShell() {
 function IntroCube({ progress }) {
   const ref = useRef();
   useFrame((_, delta) => { if (ref.current) { ref.current.rotation.x += delta * 0.25; ref.current.rotation.y += delta * 0.5; ref.current.scale.lerp(new THREE.Vector3(Math.max(0.01, 1 - progress * 5), Math.max(0.01, 1 - progress * 5), Math.max(0.01, 1 - progress * 5)), 0.08); } });
-  return <group ref={ref} position={[0, 0.55, -1.8]}><RoundedBox args={[2.2, 2.2, 2.2]} radius={0.18} smoothness={4}><meshStandardMaterial color="#ff8b55" emissive="#7d2e23" emissiveIntensity={0.45} roughness={0.2} metalness={0.35} /></RoundedBox><Text position={[0, 0, 1.13]} fontSize={0.36} color="#fff3d4" anchorX="center" anchorY="middle">JS</Text></group>;
+  return <group ref={ref} position={[0, 0.55, -1.8]}><RoundedBox args={[2.2, 2.2, 2.2]} radius={0.18} smoothness={4}><meshStandardMaterial color="#7a5cff" emissive="#563dff" emissiveIntensity={0.85} roughness={0.2} metalness={0.45} /></RoundedBox><Text position={[0, 0, 1.13]} fontSize={0.36} color="#ecfbff" anchorX="center" anchorY="middle">JS</Text></group>;
 }
 
 function DeskAndSkills({ progress }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.12) * 5));
   return <group position={[-1.7, 0, -1.4]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, -1.1, 0]}><boxGeometry args={[4.4, 0.3, 2]} /><meshStandardMaterial color="#ad5a39" roughness={0.65} /></mesh>
-    <mesh position={[-1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#ba6740" /></mesh>
-    <mesh position={[1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#ba6740" /></mesh>
-    <Float speed={1} rotationIntensity={0.08} floatIntensity={0.12}><group position={[-0.1, -0.72, 0.03]} rotation={[-0.1, 0.14, 0]}><boxGeometry args={[1.85, 0.14, 1.25]} /><meshStandardMaterial color="#476fb0" /><Text position={[0, 0.1, 0.65]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.22} color="#eef7ff" anchorX="center" anchorY="middle">MY SKILLS</Text></group></Float>
-    <Text position={[0, 0.5, 0]} fontSize={0.23} color="#2a3b70" anchorX="center" anchorY="middle" rotation={[0, 0.05, 0]}>WORKBENCH</Text>
+    <mesh position={[0, -1.1, 0]}><boxGeometry args={[4.4, 0.3, 2]} /><meshStandardMaterial color="#172542" roughness={0.45} metalness={0.3} /></mesh>
+    <mesh position={[-1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
+    <mesh position={[1.5, -0.35, 0]}><boxGeometry args={[0.25, 1.5, 1.55]} /><meshStandardMaterial color="#223455" metalness={0.25} /></mesh>
+    <Float speed={1} rotationIntensity={0.08} floatIntensity={0.12}><group position={[-0.1, -0.72, 0.03]} rotation={[-0.1, 0.14, 0]}><boxGeometry args={[1.85, 0.14, 1.25]} /><meshStandardMaterial color="#17294f" emissive="#087da8" emissiveIntensity={0.25} /><Text position={[0, 0.1, 0.65]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.22} color="#eef7ff" anchorX="center" anchorY="middle">MY SKILLS</Text></group></Float>
+    <Text position={[0, 0.5, 0]} fontSize={0.23} color="#8ee8f7" anchorX="center" anchorY="middle" rotation={[0, 0.05, 0]}>WORKBENCH</Text>
   </group>;
 }
 
 function Monitor({ progress, activeProject }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.38) * 5));
   return <group position={[2, 0.15, -1.5]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, -0.7, 0]}><boxGeometry args={[0.22, 1.4, 0.22]} /><meshStandardMaterial color="#dbe5ec" /></mesh>
-    <mesh position={[0, -1.45, 0]}><boxGeometry args={[2.7, 0.18, 1.05]} /><meshStandardMaterial color="#dbe5ec" /></mesh>
-    <mesh position={[0, 0.65, 0]}><boxGeometry args={[4.2, 2.6, 0.28]} /><meshStandardMaterial color="#eaf0f1" roughness={0.3} /></mesh>
-    <mesh position={[0, 0.65, 0.18]}><planeGeometry args={[3.72, 2.12]} /><meshBasicMaterial color={activeProject.color} /></mesh>
-    <Text position={[0, 0.95, 0.34]} fontSize={0.3} color="#17213d" anchorX="center" anchorY="middle">{activeProject.title}</Text>
-    <Text position={[0, 0.5, 0.34]} fontSize={0.12} color="#17213d" anchorX="center" anchorY="middle">{activeProject.type}</Text>
-    <Text position={[0, 0.1, 0.34]} fontSize={0.09} color="#17213d" anchorX="center" anchorY="middle">SCROLL TO EXPLORE</Text>
+    <mesh position={[0, -0.7, 0]}><boxGeometry args={[0.22, 1.4, 0.22]} /><meshStandardMaterial color="#40547e" emissive="#1f9bbd" emissiveIntensity={0.12} /></mesh>
+    <mesh position={[0, -1.45, 0]}><boxGeometry args={[2.7, 0.18, 1.05]} /><meshStandardMaterial color="#243657" metalness={0.35} /></mesh>
+    <mesh position={[0, 0.65, 0]}><boxGeometry args={[4.2, 2.6, 0.28]} /><meshStandardMaterial color="#182344" roughness={0.3} metalness={0.35} /></mesh>
+    <mesh position={[0, 0.65, 0.18]}><planeGeometry args={[3.72, 2.12]} /><meshBasicMaterial color="#0d1730" /></mesh>
+    <Text position={[0, 0.95, 0.34]} fontSize={0.3} color="#f3f7ff" anchorX="center" anchorY="middle">{activeProject.title}</Text>
+    <Text position={[0, 0.5, 0.34]} fontSize={0.12} color="#8bdcf6" anchorX="center" anchorY="middle">{activeProject.type}</Text>
+    <Text position={[0, 0.1, 0.34]} fontSize={0.09} color="#aab8d9" anchorX="center" anchorY="middle">SELECT A PROJECT BELOW</Text>
     <mesh position={[0.7, -1.44, 0.36]}><boxGeometry args={[0.75, 0.04, 0.32]} /><meshStandardMaterial color="#8d5af0" emissive="#8d5af0" emissiveIntensity={0.8} /></mesh>
   </group>;
 }
@@ -96,8 +109,8 @@ function Monitor({ progress, activeProject }) {
 function ContactShelf({ progress }) {
   const reveal = Math.min(1, Math.max(0, (progress - 0.68) * 4));
   return <group position={[0, 2.05, -1.8]} scale={[reveal, reveal, reveal]}>
-    <mesh position={[0, 0, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#a55b3c" /></mesh>
-    <mesh position={[0, -1.8, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#a55b3c" /></mesh>
+    <mesh position={[0, 0, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
+    <mesh position={[0, -1.8, 0]}><boxGeometry args={[6.5, 0.18, 1.05]} /><meshStandardMaterial color="#1b2948" metalness={0.3} roughness={0.55} /></mesh>
     <Text position={[-2.45, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">ABOUT</Text>
     <Text position={[-0.8, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">EMAIL</Text>
     <Text position={[0.85, -0.55, 0.35]} fontSize={0.28} color="#ffffff" anchorX="center" anchorY="middle">GITHUB</Text>
@@ -110,9 +123,9 @@ function ContactShelf({ progress }) {
 }
 
 function RoomScene({ progress, activeProject }) {
-  return <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: false }}>
-    <color attach="background" args={['#f8b35f']} /><fog attach="fog" args={['#f8b35f', 8, 19]} />
-    <ambientLight intensity={1.7} /><RoomShell /><IntroCube progress={progress} /><DeskAndSkills progress={progress} /><Monitor progress={progress} activeProject={activeProject} /><ContactShelf progress={progress} /><CameraPath progress={progress} />
+  return <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
+    <color attach="background" args={['#080d1c']} /><fog attach="fog" args={['#080d1c', 8, 19]} />
+    <ambientLight intensity={1.15} /><RoomShell /><IntroCube progress={progress} /><DeskAndSkills progress={progress} /><Monitor progress={progress} activeProject={activeProject} /><ContactShelf progress={progress} /><CameraPath progress={progress} />
   </Canvas>;
 }
 
@@ -123,13 +136,23 @@ export default function ScrollRoomPortfolio() {
   const activeProject = projects[projectIndex];
   const sceneIndex = Math.min(3, Math.floor(progress * 4.01));
   useEffect(() => {
-    const update = () => { const max = document.documentElement.scrollHeight - window.innerHeight; setProgress(max ? window.scrollY / max : 0); setReady(true); };
-    update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update); return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+    let frame = 0;
+    const update = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        setProgress(max ? window.scrollY / max : 0);
+        setReady(true);
+      });
+    };
+    update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update);
+    return () => { if (frame) window.cancelAnimationFrame(frame); window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, []);
   return <div className="scroll-room-page">
     <div className="scroll-room-stage"><RoomScene progress={progress} activeProject={activeProject} /></div>
     <header className="scroll-room-header"><Link href="/" className="scroll-room-logo"><span>JS</span><strong>Jazz Sajonia</strong></Link><div className="scroll-room-progress"><span style={{ width: `${progress * 100}%` }} /><small>{scenes[sceneIndex].label}</small></div><a href="mailto:jaz.sajonia@gmail.com" className="scroll-room-contact">Say hello <ArrowUpRight size={15} /></a></header>
-    <section className="scroll-room-intro scroll-room-overlay"><div className="scroll-room-kicker"><Sparkle size={14} weight="fill" /> INTERACTIVE PORTFOLIO · 2026</div><h1>Hi, I’m Jazz.<br /><em>Welcome to my room.</em></h1><p>Scroll slowly. The space changes as the work comes into view.</p><div className="scroll-room-scroll-hint"><Mouse size={17} /> Keep scrolling <ArrowRight size={16} /></div></section>
+    <section className="scroll-room-intro scroll-room-overlay"><div className="scroll-room-kicker"><Sparkle size={14} weight="fill" /> CREATIVE DEVELOPER · INTERACTIVE PORTFOLIO</div><h1>Hi, I’m Jazz.<br /><em>I build digital worlds.</em></h1><p>Software, experiments, and interactive experiences — explore the work behind the screen.</p><div className="scroll-room-scroll-hint"><Mouse size={17} /> Keep scrolling <ArrowRight size={16} /></div></section>
     <section className="scroll-room-copy scroll-room-skills-copy"><div className="scroll-room-kicker">01 / SKILLS</div><h2>Tools on the workbench.</h2><p>The stack I reach for while turning ideas into tested, useful software.</p><div className="scroll-room-skill-list">{skills.map((skill) => <span key={skill}>{skill}</span>)}</div></section>
     <section className="scroll-room-copy scroll-room-project-copy"><div className="scroll-room-kicker">02 / PROJECTS</div><h2>Built, shipped, and still learning.</h2><div className="scroll-room-project-card"><div className="scroll-room-project-top"><span style={{ background: activeProject.color }} /> <small>{String(projectIndex + 1).padStart(2, '0')} / {String(projects.length).padStart(2, '0')}</small></div><h3>{activeProject.title}</h3><div className="scroll-room-project-type">{activeProject.type}</div><p>{activeProject.description}</p><div className="scroll-room-project-stack">{activeProject.stack}</div><div className="scroll-room-project-actions"><Link href={activeProject.href}>View case study <ArrowUpRight size={15} /></Link>{activeProject.github && <a href={activeProject.github} target="_blank" rel="noreferrer"><GithubLogo size={16} /> GitHub</a>}{activeProject.live && <a href={activeProject.live} target="_blank" rel="noreferrer">Live <ArrowUpRight size={15} /></a>}</div></div><div className="scroll-room-project-nav"><button type="button" onClick={() => setProjectIndex((current) => (current - 1 + projects.length) % projects.length)} aria-label="Previous project"><ArrowLeft size={20} /></button><button type="button" onClick={() => setProjectIndex((current) => (current + 1) % projects.length)} aria-label="Next project"><ArrowRight size={20} /></button></div></section>
     <section className="scroll-room-copy scroll-room-contact-copy"><div className="scroll-room-kicker">03 / CONTACT</div><h2>Let’s build a better little world.</h2><p>Want to talk about a project, collaboration, or a useful idea? The shelf is open.</p><div className="scroll-room-contact-links"><a href="mailto:jaz.sajonia@gmail.com"><Envelope size={18} /> Email</a><a href="https://github.com/jazsajonia-pixel" target="_blank" rel="noreferrer"><GithubLogo size={18} /> GitHub</a><a href="https://www.linkedin.com" target="_blank" rel="noreferrer"><LinkedinLogo size={18} /> LinkedIn</a></div><Link href="/projects" className="scroll-room-archive-link">Open the complete archive <ArrowUpRight size={16} /></Link></section>
