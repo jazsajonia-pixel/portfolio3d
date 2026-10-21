@@ -4,23 +4,46 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, Instance, Instances, RoundedBox, Text } from '@react-three/drei';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, CaretDown, Envelope, GithubLogo, LinkedinLogo } from 'phosphor-react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, LinkedinLogo, MapPin, Phone } from 'phosphor-react';
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ */
 /* Content                                                             */
 /* ------------------------------------------------------------------ */
 
+// Content mirrors the main Portfolio repo (src/app/page.jsx, about, services, contact), checked 2026-10-21.
 const projects = [
-  { title: 'Retext', type: 'Android image editor', stack: 'Flutter · OCR · pixel-safe repair', description: 'Change text inside images while preserving untouched pixels.', color: '#ff8b55', href: '/projects#retext', github: 'https://github.com/jazsajonia-pixel/retext' },
-  { title: 'Chrono', type: 'AI coding workspace', stack: 'React · TypeScript · GitHub', description: 'Connect GitHub, review changes, and preview an app with an AI coding assistant.', color: '#9b8cff', href: '/projects#chrono', github: 'https://github.com/jazsajonia-pixel/mobdevai', live: 'https://chrono-tau.vercel.app/' },
-  { title: 'Petalbound', type: 'Pixel-art adventure', stack: 'Godot 4 · GDScript · Android', description: 'An offline action adventure with quests, guardian fights, crafting, and touch controls.', color: '#6fe0b1', href: '/projects#petalbound', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
-  { title: 'FlowPilot AI', type: 'Workflow automation', stack: 'React · AI providers · graph editor', description: 'A visual builder for triggers, AI steps, conditions, and actions.', color: '#69c8ff', href: '/projects#flowpilot', github: 'https://github.com/jazsajonia-pixel/flowpilot', live: 'https://flowpilot-sage-delta.vercel.app/' },
-  { title: 'MarketHub', type: 'Marketplace platform', stack: 'React · Prisma · PostgreSQL', description: 'Buyer, seller, and admin flows in a marketplace prototype.', color: '#ffca62', href: '/projects#markethub', github: 'https://github.com/jazsajonia-pixel/markethub' },
+  { title: 'Retext', type: 'Local-first Android image editing', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a non-destructive Android editor for changing text in images while preserving every untouched pixel.', color: '#ff8b55', href: '/projects#retext', github: 'https://github.com/jazsajonia-pixel/retext' },
+  { title: 'Petalbound', type: 'Offline pixel-art action adventure', stack: ['Godot 4', 'GDScript', 'Android'], description: 'I built a landscape Godot adventure with exploration, quests, guardian fights, crafting, and touch controls.', color: '#6fe0b1', href: '/projects#petalbound', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
+  { title: 'Chrono', type: 'AI-assisted developer tooling', stack: ['React', 'TypeScript', 'GitHub'], description: 'I built a mobile-first workspace for connecting GitHub, reviewing code changes, and previewing an app with an AI coding assistant.', color: '#9b8cff', href: '/projects#chrono', github: 'https://github.com/jazsajonia-pixel/mobdevai', live: 'https://chrono-tau.vercel.app/' },
+  { title: 'MarketHub', type: 'Full-stack marketplace prototype', stack: ['React', 'TypeScript', 'PostgreSQL'], description: 'I built a marketplace prototype with seeded data and buyer, seller, and admin flows. Checkout is simulated; it does not process real payments.', color: '#ffca62', href: '/projects#markethub', github: 'https://github.com/jazsajonia-pixel/markethub', live: 'https://markethub-pi.vercel.app/' },
+  { title: 'Chrauto AI', type: 'Android accessibility assistant', stack: ['Kotlin', 'Jetpack Compose', 'Android'], description: 'I built a native Android assistant prototype for bounded accessibility actions. Consequential actions pause for approval.', color: '#e48bd8', href: '/projects#chrauto-ai', github: 'https://github.com/jazsajonia-pixel/Chrauto-AI' },
+  { title: 'SpeedSight', type: 'Computer vision / traffic analytics', stack: ['React', 'TypeScript', 'TensorFlow.js'], description: 'I built a browser-based traffic monitoring dashboard for vehicle detection, tracking, estimated speeds, and session analytics. Speed estimates are not certified for enforcement.', color: '#69a8ff', href: '/projects#speedsight', github: 'https://github.com/jazsajonia-pixel/Project-2-SpeedSight2', live: 'https://project-2-speed-sight2.vercel.app/' },
+  { title: 'igit', type: 'Android Git client', stack: ['Kotlin', 'Jetpack Compose', 'Git'], description: 'I built a local-first Git client for Android, with repository browsing, branch and commit workflows, sync, and conflict handling.', color: '#f5a35c', href: '/projects#igit', github: 'https://github.com/jazsajonia-pixel/igit' },
+  { title: 'FlowPilot AI', type: 'Visual workflow automation', stack: ['React', 'TypeScript', 'Workflow automation'], description: 'I built a visual workflow builder for connecting triggers, AI steps, conditions, and actions, with run history for reviewing executions.', color: '#4fd1c5', href: '/projects#flowpilot', github: 'https://github.com/jazsajonia-pixel/flowpilot', live: 'https://flowpilot-sage-delta.vercel.app/' },
 ];
 
-const skills = ['HTML', 'CSS', 'JavaScript', 'TypeScript', 'React', 'Next.js', 'Three.js', 'Node.js', 'Vite', 'Flutter', 'Kotlin', 'Godot 4', 'Git', 'GitHub'];
+const skillGroups = [
+  { title: 'Used in my projects', items: ['HTML', 'CSS', 'JavaScript', 'TypeScript', 'React', 'Next.js', 'Tailwind CSS', 'PHP', 'MySQL', 'PostgreSQL', 'Prisma', 'Git', 'GitHub', 'Vercel'] },
+  { title: 'Mobile and games', items: ['Flutter', 'Dart', 'Kotlin', 'Jetpack Compose', 'Android', 'Godot 4', 'GDScript'] },
+  { title: 'Currently developing', items: ['Node.js', 'Express', 'Laravel', 'Hono', 'API design', 'AI integrations', 'Make.com'] },
+];
+
+const buildSteps = [
+  ['01', 'Plan the feature and user flow'],
+  ['02', 'Use AI as an implementation aid'],
+  ['03', 'Review, adjust, debug, and test'],
+  ['04', 'Integrate and deploy the result'],
+];
+
+const practiceAreas = [
+  { title: 'Web app features', items: 'React / Next.js · TypeScript · responsive flows' },
+  { title: 'APIs and data', items: 'REST / JSON · MySQL / PostgreSQL · Prisma' },
+  { title: 'Interface implementation', items: 'Tailwind CSS · accessible controls · layouts' },
+  { title: 'AI API experiments', items: 'OpenAI · Gemini · Claude APIs (still learning)' },
+  { title: 'Workflow automation', items: 'Make.com triggers, routers, webhooks' },
+];
 
 const FONT = '/fonts/space-grotesk-700.woff';
 const FONT_MEDIUM = '/fonts/space-grotesk-500.woff';
@@ -31,22 +54,26 @@ const FONT_MEDIUM = '/fonts/space-grotesk-500.woff';
 
 const TIMELINE = {
   welcomeEnd: 0.035,
-  growStart: 0.03, growEnd: 0.19,
-  turnStart: 0.03, turnEnd: 0.21,
-  openStart: 0.2, openEnd: 0.32,
-  panelFadeStart: 0.3, panelFadeEnd: 0.36,
+  growStart: 0.03, growEnd: 0.16,
+  turnStart: 0.03, turnEnd: 0.18,
+  openStart: 0.17, openEnd: 0.27,
+  panelFadeStart: 0.25, panelFadeEnd: 0.31,
 };
 
 // Hold windows where a context card is shown. `focus` is the scroll point used by the step navigation.
 const SECTIONS = [
   { id: 'intro', label: 'Welcome', start: 0, end: TIMELINE.welcomeEnd, focus: 0 },
-  { id: 'display', label: 'About and tools', start: 0.515, end: 0.625, focus: 0.57 },
-  { id: 'computer', label: 'Projects', start: 0.685, end: 0.815, focus: 0.75 },
-  { id: 'notes', label: 'Notes and contact', start: 0.885, end: 1.01, focus: 1 },
+  { id: 'overview', label: 'The room', start: 0.3, end: 0.4, focus: 0.35, hidden: true },
+  { id: 'display', label: 'About and tools', start: 0.45, end: 0.545, focus: 0.5 },
+  { id: 'computer', label: 'Projects', start: 0.6, end: 0.715, focus: 0.66 },
+  { id: 'notes', label: 'How I build', start: 0.77, end: 0.875, focus: 0.82 },
+  { id: 'contact', label: 'Contact', start: 0.93, end: 1.01, focus: 1 },
 ];
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const range = (value, start, end) => clamp01((value - start) / (end - start));
+const easeOutBack = (value) => 1 + 2.4 * Math.pow(value - 1, 3) + 1.4 * Math.pow(value - 1, 2);
+const INTRO_BOX_DELAY = 1.35; // seconds after the greeting starts
 const smooth = (value) => value * value * (3 - 2 * value);
 const easeInOut = (value) => (value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2);
 
@@ -94,21 +121,24 @@ const STOPS = {
   box: { look: new THREE.Vector3(0, 0.1, 0), dir: new THREE.Vector3(0, 0.36, 1).normalize(), w: 11.5, h: 9.2, wp: 10.2, hp: 9.2, card: 'none', lift: 0.07 },
   overview: { look: new THREE.Vector3(0, -0.15, 0), dir: new THREE.Vector3(0, 0.52, 1).normalize(), w: 9.4, h: 7.2, wp: 9.8, hp: 7.2, card: 'none', lift: 0 },
   display: { look: toWorld([0.75, 1.95, -3]), dir: dirToWorld([0.16, 0.1, 1]), w: 4.3, h: 2.9, wp: 2.5, hp: 2.7, card: 'left', lift: 0, lookPortrait: toWorld([0.25, 2.1, -3]) },
-  computer: { look: toWorld([-3, 1.55, -0.3]), dir: dirToWorld([1, 0.2, 0.12]), w: 3.3, h: 2.2, wp: 2.55, hp: 2.3, card: 'right', lift: 0 },
+  computer: { look: toWorld([-3, 1.3, 0.2]), dir: dirToWorld([1, 0.22, 0.05]), w: 4.1, h: 2.5, wp: 2.55, hp: 2.3, card: 'right', lift: 0, lookPortrait: toWorld([-3, 1.55, -0.3]) },
+  outro: { look: new THREE.Vector3(0, -0.35, 0), dir: new THREE.Vector3(0.12, 0.5, 1).normalize(), w: 8.6, h: 6.6, wp: 9.6, hp: 7.4, card: 'left', lift: 0 },
   notes: { look: toWorld([0.75, 0.5, 0.85]), dir: dirToWorld([0.55, 0.95, 0.75]), w: 2.5, h: 1.8, wp: 2.25, hp: 1.9, card: 'left', lift: 0 },
 };
 
 const KEYFRAMES = [
   { at: 0, stop: 'box' },
-  { at: 0.21, stop: 'box' },
-  { at: 0.38, stop: 'overview' },
-  { at: 0.43, stop: 'overview' },
-  { at: 0.53, stop: 'display' },
-  { at: 0.61, stop: 'display' },
-  { at: 0.7, stop: 'computer' },
-  { at: 0.8, stop: 'computer' },
-  { at: 0.9, stop: 'notes' },
-  { at: 1, stop: 'notes' },
+  { at: 0.18, stop: 'box' },
+  { at: 0.32, stop: 'overview' },
+  { at: 0.37, stop: 'overview' },
+  { at: 0.46, stop: 'display' },
+  { at: 0.535, stop: 'display' },
+  { at: 0.61, stop: 'computer' },
+  { at: 0.705, stop: 'computer' },
+  { at: 0.78, stop: 'notes' },
+  { at: 0.865, stop: 'notes' },
+  { at: 0.94, stop: 'outro' },
+  { at: 1, stop: 'outro' },
 ];
 
 const FOV = 38;
@@ -144,8 +174,18 @@ function frameStop(stop, width, height) {
 }
 
 function CameraTour({ progressRef, reducedMotion }) {
-  const { camera, size, gl } = useThree();
+  const { camera, size, gl, pointer } = useThree();
   const current = useRef(null);
+  const parallax = useRef({ x: 0, y: 0 });
+  const right = useMemo(() => new THREE.Vector3(), []);
+  const finePointer = useRef(false);
+  useEffect(() => {
+    const media = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const update = () => { finePointer.current = media.matches; };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useFrame((_, delta) => {
     const p = progressRef.current.smooth;
@@ -174,7 +214,17 @@ function CameraTour({ progressRef, reducedMotion }) {
       current.current.shiftY = THREE.MathUtils.lerp(current.current.shiftY, target.shiftY, k);
     }
 
-    camera.position.copy(current.current.position);
+    // Gentle pointer parallax on devices with a mouse.
+    if (!reducedMotion && finePointer.current) {
+      parallax.current.x += (pointer.x - parallax.current.x) * Math.min(1, delta * 3);
+      parallax.current.y += (pointer.y - parallax.current.y) * Math.min(1, delta * 3);
+    }
+    const distance = current.current.position.distanceTo(current.current.look);
+    const amount = Math.min(0.06 * distance, 0.5);
+    right.subVectors(current.current.look, current.current.position).cross(camera.up).normalize();
+    camera.position.copy(current.current.position)
+      .addScaledVector(right, parallax.current.x * amount)
+      .addScaledVector(camera.up, parallax.current.y * amount * 0.6);
     camera.lookAt(current.current.look);
     // Shift the rendered image so the focal subject sits in the space the card leaves free.
     camera.setViewOffset(size.width, size.height, -current.current.shiftX * size.width, current.current.shiftY * size.height, size.width, size.height);
@@ -220,14 +270,228 @@ function Book({ position, size = [0.09, 0.42, 0.3], color, tilt = 0 }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Interactivity                                                        */
+/* ------------------------------------------------------------------ */
+
+// R3F does not forward React context into the Canvas, so the scene gets its own provider.
+const RoomContext = createContext(null);
+const useRoom = () => useContext(RoomContext);
+
+export const RGB_MODES = ['wave', 'sunset', 'off'];
+const RGB_LABELS = { wave: 'Wave', sunset: 'Sunset', off: 'Off' };
+const RGB_THEME = ['#ff8b55', '#f7a8b8', '#b79cff', '#ffca62'];
+
+// Wraps a room object: lifts slightly on hover, shows a small label, runs `onSelect` on click/tap.
+function Interactive({ label, onSelect, labelOffset = [0, 0.4, 0], children, ...props }) {
+  const group = useRef();
+  const [hovered, setHovered] = useState(false);
+  const { reducedMotion } = useRoom();
+  useFrame((_, delta) => {
+    if (!group.current) return;
+    const target = hovered && !reducedMotion ? 0.035 : 0;
+    group.current.position.y += (target - group.current.position.y) * (1 - Math.pow(0.001, delta));
+  });
+  useEffect(() => () => { document.body.style.cursor = ''; }, []);
+  return (
+    <group {...props}>
+      <group
+        ref={group}
+        onPointerOver={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setHovered(false); document.body.style.cursor = ''; }}
+        onClick={(event) => { event.stopPropagation(); onSelect?.(); }}
+      >
+        {children}
+      </group>
+      {hovered && (
+        <Html position={labelOffset} center zIndexRange={[25, 0]} wrapperClass="box-tour-html">
+          <span className="box-tour-object-label">{label}</span>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+function ClockHands() {
+  const hour = useRef();
+  const minute = useRef();
+  const second = useRef();
+  useFrame(() => {
+    const now = new Date();
+    const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+    const minutes = now.getMinutes() + seconds / 60;
+    const hours = (now.getHours() % 12) + minutes / 60;
+    if (second.current) second.current.rotation.z = -(seconds / 60) * Math.PI * 2;
+    if (minute.current) minute.current.rotation.z = -(minutes / 60) * Math.PI * 2;
+    if (hour.current) hour.current.rotation.z = -(hours / 12) * Math.PI * 2;
+  });
+  return (
+    <group position={[0, 0, 0.04]}>
+      <group ref={hour}><Block args={[0.018, 0.09, 0.01]} color={palette.ink} position={[0, 0.04, 0]} castShadow={false} /></group>
+      <group ref={minute}><Block args={[0.012, 0.13, 0.01]} color={palette.ink} position={[0, 0.06, 0.005]} castShadow={false} /></group>
+      <group ref={second}><Block args={[0.006, 0.14, 0.01]} color="#e2703a" position={[0, 0.06, 0.01]} castShadow={false} /></group>
+    </group>
+  );
+}
+
+function Fan({ position, speed = 9, ringRef }) {
+  const blades = useRef();
+  const { rgbMode, reducedMotion } = useRoom();
+  useFrame((_, delta) => {
+    if (blades.current && !reducedMotion) blades.current.rotation.x += delta * (rgbMode === 'off' ? speed * 0.45 : speed);
+  });
+  return (
+    <group position={position}>
+      <mesh rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[0.105, 0.014, 8, 28]} />
+        <meshStandardMaterial ref={ringRef} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.6} roughness={0.4} toneMapped={false} />
+      </mesh>
+      <group ref={blades}>
+        {Array.from({ length: 7 }, (_, blade) => (
+          <group key={blade} rotation={[(blade / 7) * Math.PI * 2, 0, 0]}>
+            <mesh position={[0.004, 0.055, 0]} rotation={[0, 0.5, 0]}>
+              <boxGeometry args={[0.008, 0.07, 0.04]} />
+              <meshStandardMaterial color="#efe4d6" roughness={0.5} />
+            </mesh>
+          </group>
+        ))}
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.026, 0.026, 0.02, 14]} />
+          <meshStandardMaterial color="#3a2f35" roughness={0.5} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// PC tower beside the desk: cream case, smoked glass side, two spinning side fans and themed RGB.
+function PcTower() {
+  const { rgbMode, cycleRgb, reducedMotion } = useRoom();
+  const rings = [useRef(), useRef()];
+  const strip = useRef();
+  const glow = useRef();
+  const color = useMemo(() => new THREE.Color(), []);
+  const palettes = useMemo(() => RGB_THEME.map((value) => new THREE.Color(value)), []);
+  useFrame(({ clock }) => {
+    const time = reducedMotion ? 0 : clock.elapsedTime;
+    const sample = (offset) => {
+      if (rgbMode === 'sunset') return color.copy(palettes[0]).lerp(palettes[3], 0.5 + 0.5 * Math.sin(time * 0.8 + offset));
+      const phase = ((time * 0.35 + offset * 0.18) % 1 + 1) % 1 * palettes.length;
+      const index = Math.floor(phase);
+      return color.copy(palettes[index]).lerp(palettes[(index + 1) % palettes.length], phase - index);
+    };
+    const on = rgbMode !== 'off';
+    rings.forEach((ring, index) => {
+      if (!ring.current) return;
+      ring.current.emissive.copy(sample(index * 1.4));
+      ring.current.emissiveIntensity = on ? 1.6 : 0;
+    });
+    if (strip.current) {
+      strip.current.emissive.copy(sample(2.6));
+      strip.current.emissiveIntensity = on ? 1.4 : 0;
+    }
+    if (glow.current) {
+      glow.current.color.copy(sample(0.7));
+      glow.current.intensity = on ? 1.6 : 0;
+    }
+  });
+  return (
+    <Interactive label={`PC lighting: ${RGB_LABELS[rgbMode]} · click to change`} onSelect={cycleRgb} position={[-S + 0.27, 0, 1.36]} rotation={[0, Math.PI / 2, 0]} labelOffset={[0, 1.2, 0.2]}>
+      {/* Case shell (back part); the open front half sits behind the glass */}
+      <RoundedBox args={[0.78, 0.94, 0.28]} radius={0.03} smoothness={2} position={[0, 0.53, -0.06]} castShadow receiveShadow>
+        <meshStandardMaterial color="#f4e6d4" roughness={0.55} />
+      </RoundedBox>
+      {/* Frame around the glass */}
+      <Block args={[0.78, 0.06, 0.13]} color="#efdcc6" position={[0, 0.97, 0.14]} />
+      <Block args={[0.78, 0.06, 0.13]} color="#efdcc6" position={[0, 0.09, 0.14]} />
+      <Block args={[0.05, 0.94, 0.13]} color="#efdcc6" position={[-0.365, 0.53, 0.14]} />
+      <Block args={[0.05, 0.94, 0.13]} color="#efdcc6" position={[0.365, 0.53, 0.14]} />
+      {/* Feet */}
+      {[[-0.3, -0.12], [0.3, -0.12], [-0.3, 0.14], [0.3, 0.14]].map(([x, z]) => (
+        <Block key={`${x}${z}`} args={[0.08, 0.06, 0.06]} color={palette.timberDark} position={[x, 0.03, z]} castShadow={false} />
+      ))}
+      {/* Interior */}
+      <Block args={[0.68, 0.82, 0.01]} color="#2c2427" position={[0, 0.53, 0.085]} castShadow={false} roughness={0.7} />
+      <Block args={[0.4, 0.08, 0.1]} color="#3a3034" position={[-0.1, 0.4, 0.14]} castShadow={false} />
+      <mesh position={[-0.1, 0.355, 0.19]}>
+        <boxGeometry args={[0.38, 0.012, 0.012]} />
+        <meshStandardMaterial ref={strip} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.4} toneMapped={false} />
+      </mesh>
+      <Block args={[0.13, 0.13, 0.08]} color="#4a3d42" position={[-0.1, 0.7, 0.13]} castShadow={false} />
+      {/* Side fans facing the room */}
+      <group rotation={[0, -Math.PI / 2, 0]} position={[0.2, 0.53, 0.15]}>
+        <Fan position={[0, 0.2, 0]} ringRef={rings[0]} />
+        <Fan position={[0, -0.12, 0]} ringRef={rings[1]} speed={11} />
+      </group>
+      {/* Smoked glass */}
+      <mesh position={[0, 0.53, 0.206]}>
+        <planeGeometry args={[0.68, 0.82]} />
+        <meshStandardMaterial color="#6a5a60" transparent opacity={0.16} roughness={0.05} metalness={0.2} depthWrite={false} />
+      </mesh>
+      {/* Power LED and top vents */}
+      <mesh position={[-0.391, 0.9, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <circleGeometry args={[0.015, 12]} />
+        <meshBasicMaterial color={rgbMode === 'off' ? '#9a8a7a' : '#7ad3c0'} toneMapped={false} />
+      </mesh>
+      {[-0.2, -0.1, 0, 0.1, 0.2].map((x) => (
+        <Block key={x} args={[0.05, 0.004, 0.2]} color="#d9c6ae" position={[x, 1.001, -0.05]} castShadow={false} receiveShadow={false} />
+      ))}
+      <pointLight ref={glow} position={[0, 0.55, 0.45]} intensity={1.6} distance={1.8} decay={2} color="#ff8b55" />
+    </Interactive>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Display / shelf wall (back wall, z = -S)                             */
 /* ------------------------------------------------------------------ */
 
+function SpinningRecord() {
+  const record = useRef();
+  const [playing, setPlaying] = useState(true);
+  const { reducedMotion } = useRoom();
+  useFrame((_, delta) => {
+    if (record.current && playing && !reducedMotion) record.current.rotation.y += delta * 3.5;
+  });
+  return (
+    <Interactive label={playing ? 'Pause the record' : 'Play the record'} onSelect={() => setPlaying((value) => !value)} position={[-0.35, 0.765, 0]} labelOffset={[0, 0.3, 0]}>
+      <group ref={record}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.26, 0.26, 0.012, 32]} />
+          <meshStandardMaterial color="#2b2522" roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.008, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.004, 20]} />
+          <meshStandardMaterial color="#f2c86b" roughness={0.6} />
+        </mesh>
+        <mesh position={[0.05, 0.011, 0]}>
+          <boxGeometry args={[0.03, 0.002, 0.01]} />
+          <meshStandardMaterial color="#e2703a" />
+        </mesh>
+      </group>
+    </Interactive>
+  );
+}
+
+function WigglePlant(props) {
+  const group = useRef();
+  const wiggle = useRef(0);
+  const { reducedMotion } = useRoom();
+  useFrame(({ clock }, delta) => {
+    wiggle.current = Math.max(0, wiggle.current - delta);
+    if (group.current) group.current.rotation.z = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 18) * 0.12 * wiggle.current;
+  });
+  return (
+    <Interactive label="Say hi to the plant" onSelect={() => { wiggle.current = 1.2; }} position={props.position} labelOffset={[0, 1.1, 0]}>
+      <group ref={group}><Plant position={[0, 0, 0]} scale={props.scale} pot={props.pot} /></group>
+    </Interactive>
+  );
+}
+
 function DisplayWall() {
+  const { goTo } = useRoom();
   return (
     <group>
       {/* Name sign */}
-      <group position={[0.1, 2.88, -S + 0.06]}>
+      <Interactive label="About me" onSelect={() => goTo('display')} position={[0.1, 2.88, -S + 0.06]} labelOffset={[0, 0.5, 0.1]}>
         <RoundedBox args={[1.9, 0.62, 0.08]} radius={0.06} smoothness={3} castShadow>
           <meshStandardMaterial color="#fff8ee" roughness={0.6} />
         </RoundedBox>
@@ -237,7 +501,7 @@ function DisplayWall() {
         <Text font={FONT_MEDIUM} position={[0, -0.17, 0.05]} fontSize={0.075} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.14}>
           SOFTWARE BUILDER
         </Text>
-      </group>
+      </Interactive>
 
       {/* Picture frames */}
       {[
@@ -269,13 +533,12 @@ function DisplayWall() {
           <circleGeometry args={[0.18, 28]} />
           <meshStandardMaterial color="#fffaf1" roughness={0.8} />
         </mesh>
-        <Block args={[0.015, 0.12, 0.01]} color={palette.ink} position={[0, 0.05, 0.04]} castShadow={false} />
-        <Block args={[0.09, 0.015, 0.01]} color={palette.ink} position={[0.04, 0, 0.04]} castShadow={false} />
+        <ClockHands />
       </group>
 
       {/* Floating shelves with labelled tool groups */}
       {[
-        { y: 2.15, label: 'WEB' },
+        { y: 2.15, label: 'WEB · DATA' },
         { y: 1.5, label: 'MOBILE · GAMES' },
       ].map(({ y, label }) => (
         <group key={label} position={[0.1, y, -S + 0.2]}>
@@ -352,18 +615,11 @@ function DisplayWall() {
             <meshStandardMaterial color="#ff8c5a" emissive="#ff7a45" emissiveIntensity={0.9} roughness={0.3} />
           </mesh>
         </group>
-        <mesh position={[-0.35, 0.765, 0]} castShadow>
-          <cylinderGeometry args={[0.26, 0.26, 0.012, 32]} />
-          <meshStandardMaterial color="#2b2522" roughness={0.4} />
-        </mesh>
-        <mesh position={[-0.35, 0.773, 0]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.004, 20]} />
-          <meshStandardMaterial color="#f2c86b" roughness={0.6} />
-        </mesh>
+        <SpinningRecord />
       </group>
 
       {/* Tall floor plant in the right corner */}
-      <Plant position={[2.55, 0, -2.45]} scale={1.55} pot="#d9896a" />
+      <WigglePlant position={[2.55, 0, -2.45]} scale={1.55} pot="#d9896a" />
     </group>
   );
 }
@@ -417,7 +673,7 @@ function drawMonitorScreen(canvas, project, index, total) {
   context.fillText(project.title, 52, 240);
   context.fillStyle = 'rgba(255,246,234,0.7)';
   context.font = '500 26px "Space Grotesk", system-ui, sans-serif';
-  context.fillText(project.stack, 56, 300);
+  context.fillText(project.stack.join(' · '), 56, 300);
 
   // Fake UI rows
   context.fillStyle = 'rgba(255,255,255,0.12)';
@@ -468,6 +724,7 @@ function MonitorScreen({ project, index }) {
 }
 
 function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNext }) {
+  const { goTo, phase, lampOn, toggleLamp } = useRoom();
   const deskX = -S + 0.42; // centre of the desk depth
   return (
     <group>
@@ -531,7 +788,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         <group position={[-0.18, 1.0, -0.05]} rotation={[0, Math.PI / 2, 0]}>
           <Block args={[0.34, 0.03, 0.22]} color="#e9ddcd" position={[0, 0.015, 0]} roughness={0.5} />
           <Block args={[0.08, 0.32, 0.06]} color="#e9ddcd" position={[0, 0.18, -0.02]} roughness={0.5} />
-          <group position={[0, 0.66, 0.02]}>
+          <Interactive label={phase === 'computer' ? 'Next project' : 'See my projects'} onSelect={() => (phase === 'computer' ? onNext() : goTo('computer'))} position={[0, 0.66, 0.02]} labelOffset={[0, 0.6, 0.05]}>
             <RoundedBox args={[1.32, 0.86, 0.07]} radius={0.04} smoothness={3} castShadow>
               <meshStandardMaterial color="#efe4d6" roughness={0.45} />
             </RoundedBox>
@@ -541,7 +798,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
               <sphereGeometry args={[0.018, 10, 8]} />
               <meshStandardMaterial color="#29303f" roughness={0.3} />
             </mesh>
-          </group>
+          </Interactive>
           {/* Arrow controls anchored beside the monitor */}
           <Html position={[-0.98, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onPrevious} aria-label="Previous project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
@@ -591,7 +848,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
           </group>
         ))}
         {/* Desk lamp */}
-        <group position={[-0.1, 1.0, -1.05]}>
+        <Interactive label={lampOn ? 'Turn the lamp off' : 'Turn the lamp on'} onSelect={toggleLamp} position={[-0.1, 1.0, -1.05]} labelOffset={[0.1, 0.7, 0]}>
           <mesh castShadow position={[0, 0.02, 0]}>
             <cylinderGeometry args={[0.11, 0.12, 0.04, 18]} />
             <meshStandardMaterial color="#fff3e2" roughness={0.5} />
@@ -602,16 +859,18 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
           </mesh>
           <mesh castShadow position={[0.14, 0.44, 0]} rotation={[0, 0, -2.1]}>
             <coneGeometry args={[0.11, 0.18, 18, 1, true]} />
-            <meshStandardMaterial color="#fff3e2" roughness={0.5} side={THREE.DoubleSide} />
+            <meshStandardMaterial color="#fff3e2" emissive="#ffd59a" emissiveIntensity={lampOn ? 0.6 : 0} roughness={0.5} side={THREE.DoubleSide} />
           </mesh>
-          <pointLight position={[0.2, 0.36, 0]} intensity={1.4} distance={2.2} color="#ffd59a" />
-        </group>
+          <pointLight position={[0.2, 0.36, 0]} intensity={lampOn ? 1.8 : 0} distance={2.4} color="#ffd59a" />
+        </Interactive>
         {/* Mug */}
         <mesh position={[0.25, 1.05, -0.75]} castShadow>
           <cylinderGeometry args={[0.055, 0.05, 0.11, 14]} />
           <meshStandardMaterial color="#7cc9a0" roughness={0.6} />
         </mesh>
       </group>
+
+      <PcTower />
 
       {/* Chair */}
       <group position={[-S + 1.3, 0, -0.3]} rotation={[0, -0.25, 0]}>
@@ -635,6 +894,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
 /* ------------------------------------------------------------------ */
 
 function NotesTable() {
+  const { goTo } = useRoom();
   return (
     <group position={[0.75, 0, 0.85]}>
       {/* Rug */}
@@ -661,7 +921,7 @@ function NotesTable() {
         );
       })}
       {/* Open notebook */}
-      <group position={[-0.12, 0.54, 0.12]} rotation={[0, 0.35, 0]}>
+      <Interactive label="How I build" onSelect={() => goTo('notes')} position={[-0.2, 0.54, -0.02]} rotation={[0, 0.35, 0]} labelOffset={[0, 0.35, 0]}>
         {[-0.17, 0.17].map((x, side) => (
           <group key={x} position={[x, 0, 0]} rotation={[0, 0, side ? -0.05 : 0.05]}>
             <Block args={[0.33, 0.02, 0.44]} color="#fffaf0" roughness={0.9} />
@@ -673,15 +933,17 @@ function NotesTable() {
         <Text font={FONT} position={[-0.17, 0.024, -0.03]} rotation={[-Math.PI / 2, 0, 0.05]} fontSize={0.045} color="#e2703a" anchorX="center" anchorY="middle" maxWidth={0.28} textAlign="center">
           IDEAS
         </Text>
-      </group>
-      {/* Sticky notes */}
+      </Interactive>
+      {/* Sticky notes: how I build */}
       {[
-        { position: [0.36, 0.536, -0.2], rotation: -0.25, color: '#8fb8f0', text: 'SAY HI' },
-        { position: [0.4, 0.537, 0.26], rotation: 0.3, color: '#f7a8b8', text: "LET'S\nBUILD" },
+        { position: [0.38, 0.536, -0.22], rotation: -0.25, color: '#8fb8f0', text: '01\nPLAN' },
+        { position: [0.47, 0.537, 0.12], rotation: 0.18, color: '#f7a8b8', text: '02\nAI AID' },
+        { position: [0.22, 0.538, 0.44], rotation: -0.1, color: '#b9e39b', text: '03\nREVIEW\n+ TEST' },
+        { position: [-0.18, 0.539, 0.52], rotation: 0.32, color: '#ffd66e', text: '04\nSHIP' },
       ].map((note) => (
         <group key={note.text} position={note.position} rotation={[0, note.rotation, 0]}>
           <Block args={[0.26, 0.006, 0.26]} color={note.color} roughness={0.9} castShadow={false} />
-          <Text font={FONT} position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.05} lineHeight={1.05} color={palette.ink} anchorX="center" anchorY="middle" textAlign="center">
+          <Text font={FONT} position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.045} lineHeight={1.05} color={palette.ink} anchorX="center" anchorY="middle" textAlign="center">
             {note.text}
           </Text>
         </group>
@@ -758,6 +1020,8 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
   const frontMaterial = useRef();
   const sideMaterial = useRef();
   const lidMaterial = useRef();
+  const introStart = useRef(null);
+  const appear = useRef(0);
 
   useFrame(({ clock }) => {
     const p = progressRef.current.smooth;
@@ -766,11 +1030,17 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
     const open = easeInOut(range(p, TIMELINE.openStart, TIMELINE.openEnd));
     const fade = range(p, TIMELINE.panelFadeStart, TIMELINE.panelFadeEnd);
 
-    const scale = THREE.MathUtils.lerp(0.26, 1, grow);
+    // The welcome text plays first; the box pops in after it (or immediately once the visitor scrolls).
+    const sinceStart = clock.elapsedTime - (introStart.current ?? (introStart.current = clock.elapsedTime));
+    const introT = p > 0.004 ? 1 : range(sinceStart, INTRO_BOX_DELAY, INTRO_BOX_DELAY + 0.7);
+    appear.current = Math.max(appear.current, reducedMotion ? (introT > 0 ? 1 : 0) : introT);
+    const pop = appear.current >= 1 ? 1 : easeOutBack(appear.current);
+    const scale = THREE.MathUtils.lerp(0.26, 1, grow) * Math.max(pop, 0.0001);
     const idle = reducedMotion ? 0 : (1 - grow) * Math.sin(clock.elapsedTime * 1.6) * 0.18;
     const idleSpin = reducedMotion ? 0 : (1 - turn) * Math.sin(clock.elapsedTime * 0.7) * 0.12;
     if (outer.current) {
       outer.current.scale.setScalar(scale);
+      outer.current.visible = appear.current > 0;
       outer.current.position.y = idle;
       outer.current.rotation.y = THREE.MathUtils.lerp(START_YAW, FINAL_YAW, turn) + idleSpin;
     }
@@ -880,7 +1150,9 @@ function RoomScene(props) {
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
       />
-      <BoxRoom {...props} />
+      <RoomContext.Provider value={props.room}>
+        <BoxRoom {...props} />
+      </RoomContext.Provider>
       <CameraTour progressRef={props.progressRef} reducedMotion={props.reducedMotion} />
     </Canvas>
   );
@@ -893,7 +1165,7 @@ function RoomScene(props) {
 const cardMotion = {
   initial: { opacity: 0, y: 16, scale: 0.97 },
   animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 10, scale: 0.98 },
+  exit: { opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.16 } },
   transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
 };
 
@@ -907,7 +1179,7 @@ function ContextCard({ side, tag, tagColor, children, labelledBy }) {
   );
 }
 
-function scrollToProgress(value, reducedMotion) {
+export function scrollToProgress(value, reducedMotion) {
   const max = document.documentElement.scrollHeight - window.innerHeight;
   window.scrollTo({ top: Math.round(max * value), behavior: reducedMotion ? 'auto' : 'smooth' });
 }
@@ -915,10 +1187,18 @@ function scrollToProgress(value, reducedMotion) {
 export default function ScrollRoomPortfolio() {
   const progressRef = useRef({ target: 0, smooth: 0 });
   const [phase, setPhase] = useState('intro');
-  const [ready, setReady] = useState(false);
   const [projectIndex, setProjectIndex] = useState(0);
   const reducedMotion = useReducedMotion() ?? false;
   const project = projects[projectIndex];
+
+  const [lampOn, setLampOn] = useState(true);
+  const [rgbMode, setRgbMode] = useState('wave');
+  const toggleLamp = useCallback(() => setLampOn((value) => !value), []);
+  const cycleRgb = useCallback(() => setRgbMode((value) => RGB_MODES[(RGB_MODES.indexOf(value) + 1) % RGB_MODES.length]), []);
+  const goTo = useCallback((id) => {
+    const section = SECTIONS.find((item) => item.id === id);
+    if (section) scrollToProgress(section.focus, reducedMotion);
+  }, [reducedMotion]);
 
   const previousProject = useCallback(() => setProjectIndex((value) => (value - 1 + projects.length) % projects.length), []);
   const nextProject = useCallback(() => setProjectIndex((value) => (value + 1) % projects.length), []);
@@ -933,7 +1213,6 @@ export default function ScrollRoomPortfolio() {
       progressRef.current.target = value;
       const section = SECTIONS.find((item) => value >= item.start && value < item.end);
       setPhase(section ? section.id : 'travel');
-      setReady(true);
     };
     const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(read); };
     read();
@@ -974,11 +1253,9 @@ export default function ScrollRoomPortfolio() {
     return () => window.removeEventListener('keydown', onKey);
   }, [phase, previousProject, nextProject]);
 
-  const welcomeWords = 'Hi, nice to meet you! I’m Jazz.'.split(' ');
-
   return (
     <div className="box-tour-page">
-      <div className="box-tour-stage" aria-hidden={phase !== 'computer'}>
+      <div className="box-tour-stage">
         <RoomScene
           progressRef={progressRef}
           reducedMotion={reducedMotion}
@@ -987,13 +1264,14 @@ export default function ScrollRoomPortfolio() {
           controlsVisible={phase === 'computer'}
           onPrevious={previousProject}
           onNext={nextProject}
+          room={{ phase, goTo, lampOn, toggleLamp, rgbMode, cycleRgb, reducedMotion }}
         />
       </div>
 
       <nav className="box-tour-nav" aria-label="Room tour">
-        <Link href="/projects" className="box-tour-archive">All projects <ArrowUpRight size={14} weight="bold" /></Link>
+        <Link href="/projects" className="box-tour-archive" aria-label="All projects"><span>All projects</span> <ArrowUpRight size={14} weight="bold" /></Link>
         <ol>
-          {SECTIONS.map((section) => (
+          {SECTIONS.filter((section) => !section.hidden).map((section) => (
             <li key={section.id}>
               <button
                 type="button"
@@ -1009,52 +1287,31 @@ export default function ScrollRoomPortfolio() {
         </ol>
       </nav>
 
-      <AnimatePresence>
-        {phase === 'intro' && (
-          <motion.header key="welcome" className="box-tour-welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.35 }}>
-            <h1>
-              {welcomeWords.map((word, index) => (
-                <motion.span
-                  key={`${word}-${index}`}
-                  initial={reducedMotion ? false : { opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 + index * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  {word}{' '}
-                </motion.span>
-              ))}
-            </h1>
-            <motion.p initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.95, duration: 0.5 }}>
-              I build apps, games and small tools. Come inside.
-            </motion.p>
-            <motion.button
-              type="button"
-              className="box-tour-scroll-hint"
-              onClick={() => scrollToProgress(0.4, reducedMotion)}
-              initial={reducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2, duration: 0.5 }}
-            >
-              <span>Scroll to open the box</span>
-              <CaretDown size={20} weight="bold" />
-            </motion.button>
-          </motion.header>
+      <AnimatePresence mode="wait" initial={false}>
+        {phase === 'overview' && (
+          <motion.p key="tip" className="box-tour-tip" role="status" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.3 }}>
+            Tip: hover or tap things in the room. Try the lamp, the PC, the record and the plant.
+          </motion.p>
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {phase === 'display' && (
           <ContextCard key="display" side="left" tag="About" tagColor="#78c25b" labelledBy="card-about">
-            <h2 id="card-about">I learn by building.</h2>
-            <p>I’m Jazz Sajonia. I started programming seriously in early 2024, through university coursework, independent study, and projects I build myself. The shelves hold the tools I use most.</p>
-            <ul className="box-tour-chips" aria-label="Tools">
-              {skills.map((skill) => <li key={skill}>{skill}</li>)}
-            </ul>
+            <h2 id="card-about">Full-stack web developer, learning by building.</h2>
+            <p>I’m Jazzther Bert Shanne Sajonia. I started programming seriously in early 2024, through university coursework, independent study, and projects I build myself. My focus is React and TypeScript, APIs, and database-backed features; I also experiment with AI-assisted tools and workflow automation.</p>
+            <dl className="box-tour-stats">
+              <div><dt>2024</dt><dd>Started coding seriously</dd></div>
+              <div><dt>{projects.length}</dt><dd>Featured personal builds</dd></div>
+              <div><dt>3</dt><dd>University and team projects</dd></div>
+            </dl>
+            {skillGroups.map((group) => (
+              <div key={group.title} className="box-tour-group">
+                <h3>{group.title}</h3>
+                <ul className="box-tour-chips">
+                  {group.items.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+            ))}
           </ContextCard>
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {phase === 'computer' && (
           <ContextCard key="computer" side="right" tag="Projects" tagColor="#9b7be0" labelledBy="card-project">
             <div className="box-tour-project-meta" aria-live="polite">
@@ -1063,24 +1320,50 @@ export default function ScrollRoomPortfolio() {
             </div>
             <h2 id="card-project">{project.title}</h2>
             <p>{project.description}</p>
-            <div className="box-tour-stack" style={{ borderColor: project.color }}>{project.stack}</div>
+            <ul className="box-tour-chips box-tour-tags" aria-label="Built with" style={{ '--tag-accent': project.color }}>
+              {project.stack.map((item) => <li key={item}>{item}</li>)}
+            </ul>
             <div className="box-tour-actions">
-              <Link href={project.href}>Case study <ArrowUpRight size={15} weight="bold" /></Link>
+              <Link href={project.href}>Project details <ArrowUpRight size={15} weight="bold" /></Link>
               {project.github && <a href={project.github} target="_blank" rel="noreferrer"><GithubLogo size={16} /> GitHub</a>}
-              {project.live && <a href={project.live} target="_blank" rel="noreferrer">Live <ArrowUpRight size={15} /></a>}
+              {project.live && <a href={project.live} target="_blank" rel="noreferrer">Live demo <ArrowUpRight size={15} /></a>}
             </div>
-            <p className="box-tour-hint">Use the arrows beside the monitor, or your ← → keys.</p>
+            <div className="box-tour-room-controls">
+              <button type="button" onClick={cycleRgb} aria-label={`PC lighting: ${rgbMode}. Change lighting`}>
+                <span className={`box-tour-rgb-dot is-${rgbMode}`} aria-hidden="true" /> PC lighting: {RGB_LABELS[rgbMode]}
+              </button>
+              <button type="button" onClick={toggleLamp} aria-pressed={lampOn}>Desk lamp: {lampOn ? 'On' : 'Off'}</button>
+            </div>
+            <p className="box-tour-hint">Use the arrows beside the monitor, your ← → keys, or click the screen. University and team projects are in the <Link href="/projects">project archive</Link>.</p>
           </ContextCard>
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {phase === 'notes' && (
-          <ContextCard key="notes" side="left" tag="Notes" tagColor="#6d9be8" labelledBy="card-notes">
-            <h2 id="card-notes">Let’s build something.</h2>
-            <p>The notes on the table are where ideas start. If you have one, I’d like to hear it.</p>
+          <ContextCard key="notes" side="left" tag="How I build" tagColor="#6d9be8" labelledBy="card-notes">
+            <h2 id="card-notes">Notes from the worktable.</h2>
+            <ol className="box-tour-steps">
+              {buildSteps.map(([number, label]) => <li key={number}><span>{number}</span>{label}</li>)}
+            </ol>
+            <p>AI can speed up exploration, but I’m responsible for understanding, reviewing, testing, and integrating the code I use.</p>
+            <div className="box-tour-group">
+              <h3>Areas I’m practicing</h3>
+              <ul className="box-tour-areas">
+                {practiceAreas.map((area) => <li key={area.title}><strong>{area.title}</strong><span>{area.items}</span></li>)}
+              </ul>
+            </div>
+            <p className="box-tour-hint">Tools I build with: ChatGPT · Gemini · Claude · Manus · Codex · Copilot</p>
+          </ContextCard>
+        )}
+        {phase === 'contact' && (
+          <ContextCard key="contact" side="left" tag="Contact" tagColor="#e2703a" labelledBy="card-contact">
+            <h2 id="card-contact">Let’s build something.</h2>
+            <p>Have a question about a project or want to discuss a collaboration? I’m most comfortable with a clearly scoped task that matches the work in this room.</p>
+            <ul className="box-tour-contact-list">
+              <li><Envelope size={17} /><a href="mailto:jaz.sajonia@gmail.com">jaz.sajonia@gmail.com</a></li>
+              <li><Phone size={17} /><a href="tel:+639367046410">(+63) 9367046410</a></li>
+              <li><MapPin size={17} /><span>General Santos City, Philippines</span></li>
+            </ul>
             <div className="box-tour-actions box-tour-contact">
-              <a href="mailto:jaz.sajonia@gmail.com"><Envelope size={17} /> Email</a>
+              <Link href="/contact"><Envelope size={16} /> Write a message</Link>
               <a href="https://github.com/jazsajonia-pixel" target="_blank" rel="noreferrer"><GithubLogo size={17} /> GitHub</a>
               <a href="https://www.linkedin.com/in/jazzther-bert-shanne-sajonia-a67502439" target="_blank" rel="noreferrer"><LinkedinLogo size={17} /> LinkedIn</a>
             </div>
@@ -1089,7 +1372,6 @@ export default function ScrollRoomPortfolio() {
         )}
       </AnimatePresence>
 
-      {!ready && <div className="box-tour-loading" role="status">Unpacking the room…</div>}
     </div>
   );
 }
