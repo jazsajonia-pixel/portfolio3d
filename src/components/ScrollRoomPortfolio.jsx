@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { RoundedBox, Text } from '@react-three/drei';
+import { ContactShadows, RoundedBox, Text } from '@react-three/drei';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, LinkedinLogo, Mouse, Sparkle } from 'phosphor-react';
@@ -37,9 +37,9 @@ function CameraPath({ progress }) {
   }, []);
   const targets = useMemo(() => [
     { position: new THREE.Vector3(0, 1.5, 11), look: new THREE.Vector3(0, 1, 0) },
-    { position: new THREE.Vector3(-3.4, 2.2, 7.2), look: new THREE.Vector3(-1.6, 1.3, -1.2) },
-    { position: new THREE.Vector3(3.4, 1.7, 5.5), look: new THREE.Vector3(1.2, 1.2, -1.1) },
-    { position: new THREE.Vector3(0, 3.4, 6.1), look: new THREE.Vector3(0, 2.5, -1.4) },
+    { position: new THREE.Vector3(-3.7, 1.35, 4.9), look: new THREE.Vector3(-1.8, -0.35, -1.65) },
+    { position: new THREE.Vector3(0.9, 0.95, 3.85), look: new THREE.Vector3(-1.65, -0.1, -2.0) },
+    { position: new THREE.Vector3(1.15, 2.15, 3.55), look: new THREE.Vector3(1.35, 1.35, -5.1) },
   ], []);
   useFrame((_, delta) => {
     const scaled = Math.min(progress, 0.999) * (targets.length - 1);
@@ -70,12 +70,12 @@ function RoomShell() {
         <boxGeometry args={[11.7, 0.42, 9.3]} />
         <meshStandardMaterial color="#d5a16c" roughness={0.82} />
       </mesh>
-      <mesh position={[0, -2.43, -1.45]}>
+      <mesh receiveShadow position={[0, -2.43, -1.45]}>
         <boxGeometry args={[11.45, 0.12, 9.05]} />
         <meshStandardMaterial color="#f0d2a4" roughness={0.78} />
       </mesh>
       {floorBoards.map((x, index) => (
-        <mesh key={index} position={[x, -2.355, -1.45]}>
+        <mesh key={index} receiveShadow position={[x, -2.355, -1.45]}>
           <boxGeometry args={[0.68, 0.035, 8.85]} />
           <meshStandardMaterial color={index % 2 ? '#c9905c' : '#d9a873'} roughness={0.88} />
         </mesh>
@@ -85,7 +85,7 @@ function RoomShell() {
         <boxGeometry args={[11.4, 5.85, 0.25]} />
         <meshStandardMaterial color="#fff4e6" roughness={0.96} />
       </mesh>
-      <mesh position={[-5.56, 0.48, -1.55]}>
+      <mesh receiveShadow position={[-5.56, 0.48, -1.55]}>
         <boxGeometry args={[0.24, 5.85, 8.55]} />
         <meshStandardMaterial color="#f4e5d3" roughness={0.95} />
       </mesh>
@@ -145,7 +145,7 @@ function RoomShell() {
         <meshStandardMaterial color="#9ebda4" />
       </mesh>
       <hemisphereLight args={['#fff6e9', '#9a684b', 1.25]} />
-      <directionalLight position={[-4, 7, 5]} intensity={2.1} color="#fff0d8" />
+      <directionalLight castShadow position={[-4, 7, 5]} intensity={1.8} color="#fff0d8" shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-camera-near={0.5} shadow-camera-far={22} shadow-bias={-0.00015} />
       <pointLight position={[-3.5, 2.8, -1.8]} intensity={5.5} distance={10} color="#ffd5a1" />
       <pointLight position={[3.5, 2.2, -2.5]} intensity={3.8} distance={8} color="#c7c2ff" />
     </>
@@ -172,7 +172,7 @@ function DeskAndSkills() {
   return (
     <group position={[-1.65, 0, -1.7]}>
       {/* Wooden work table */}
-      <mesh position={[0, -1.12, 0]}>
+      <mesh castShadow receiveShadow position={[0, -1.12, 0]}>
         <boxGeometry args={[3.75, 0.18, 1.75]} />
         <meshStandardMaterial color="#d49a61" roughness={0.76} />
       </mesh>
@@ -214,7 +214,10 @@ function DeskAndSkills() {
         <sphereGeometry args={[1, 12, 10]} />
         <meshStandardMaterial color="#5f9a78" roughness={0.9} />
       </mesh>
-      <Text position={[0, -0.88, -0.64]} fontSize={0.17} color="#fff8ef" anchorX="center" anchorY="middle">
+      <RoundedBox position={[0, -0.88, -0.61]} args={[1.42, 0.32, 0.06]} radius={0.06} smoothness={3}>
+        <meshBasicMaterial color="#49372f" />
+      </RoundedBox>
+      <Text position={[0, -0.88, -0.565]} fontSize={0.15} color="#fff4e6" anchorX="center" anchorY="middle" letterSpacing={0.025}>
         WORKBENCH
       </Text>
       {/* A compact stool tucked beneath the table */}
@@ -241,7 +244,7 @@ function Monitor({ activeProject }) {
         <boxGeometry args={[1.05, 0.12, 0.6]} />
         <meshStandardMaterial color="#d7b58e" roughness={0.5} />
       </mesh>
-      <RoundedBox position={[0, 0.05, 0]} args={[2.72, 1.82, 0.18]} radius={0.09} smoothness={4}>
+      <RoundedBox castShadow receiveShadow position={[0, 0.05, 0]} args={[2.72, 1.82, 0.18]} radius={0.09} smoothness={4}>
         <meshStandardMaterial color="#e8d8c8" roughness={0.48} metalness={0.12} />
       </RoundedBox>
       <mesh position={[0, 0.05, 0.105]}>
@@ -272,7 +275,7 @@ function Monitor({ activeProject }) {
 function ContactShelf() {
   return (
     <group position={[1.35, 2.0, -5.38]}>
-      <mesh position={[0, 0.1, 0]}>
+      <mesh castShadow receiveShadow position={[0, 0.1, 0]}>
         <boxGeometry args={[3.35, 0.14, 0.48]} />
         <meshStandardMaterial color="#c58b55" roughness={0.75} />
       </mesh>
@@ -303,7 +306,7 @@ function ContactShelf() {
         <boxGeometry args={[0.42, 0.42, 0.28]} />
         <meshStandardMaterial color="#e9b0c7" roughness={0.7} />
       </mesh>
-      <Text position={[0, -0.49, 0.27]} fontSize={0.18} color="#fff8ef" anchorX="center" anchorY="middle" letterSpacing={0.12}>
+      <Text position={[0, -0.49, 0.27]} fontSize={0.16} color="#49372f" anchorX="center" anchorY="middle" letterSpacing={0.07}>
         MAKE · LEARN · BUILD
       </Text>
     </group>
@@ -312,7 +315,7 @@ function ContactShelf() {
 
 function RoomScene({ progress, activeProject }) {
   return (
-    <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.25]} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
+    <Canvas className="scroll-room-canvas" camera={{ position: [0, 1.5, 11], fov: 44 }} dpr={[1, 1.25]} shadows gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
       <mesh position={[0, 0, -9]}>
         <planeGeometry args={[200, 200]} />
         <shaderMaterial
@@ -323,6 +326,7 @@ function RoomScene({ progress, activeProject }) {
       </mesh>
       <fog attach="fog" args={['#f8b15f', 19, 38]} />
       <ambientLight intensity={0.65} />
+      <ContactShadows position={[0, -2.36, -1.45]} opacity={0.24} scale={10} blur={2.4} far={5} resolution={256} color="#68452d" />
       <RoomShell />
       <IntroCube />
       <DeskAndSkills />
