@@ -1,11 +1,11 @@
 'use client';
 
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Instance, Instances, RoundedBox, Text } from '@react-three/drei';
+import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
+import { Html, Instance, Instances, RoundedBox, Text, Trail } from '@react-three/drei';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, LinkedinLogo, MapPin, Phone } from 'phosphor-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, Lightbulb, LinkedinLogo, MapPin, Moon, Phone, Sun } from 'phosphor-react';
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ */
@@ -64,10 +64,10 @@ const TIMELINE = {
 const SECTIONS = [
   { id: 'intro', label: 'Welcome', start: 0, end: TIMELINE.welcomeEnd, focus: 0 },
   { id: 'overview', label: 'The room', start: 0.3, end: 0.4, focus: 0.35, hidden: true },
-  { id: 'display', label: 'About and tools', start: 0.45, end: 0.545, focus: 0.5 },
-  { id: 'computer', label: 'Projects', start: 0.6, end: 0.715, focus: 0.66 },
-  { id: 'notes', label: 'How I build', start: 0.77, end: 0.875, focus: 0.82 },
-  { id: 'contact', label: 'Contact', start: 0.93, end: 1.01, focus: 1 },
+  { id: 'display', label: 'About and tools', start: 0.46, end: 0.535, focus: 0.4975 },
+  { id: 'computer', label: 'Projects', start: 0.64, end: 0.71, focus: 0.675 },
+  { id: 'notes', label: 'How I build', start: 0.815, end: 0.87, focus: 0.8425 },
+  { id: 'contact', label: 'Contact', start: 0.965, end: 1.01, focus: 1 },
 ];
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
@@ -126,18 +126,20 @@ const STOPS = {
   notes: { look: toWorld([0.75, 0.5, 0.85]), dir: dirToWorld([0.55, 0.95, 0.75]), w: 2.5, h: 1.8, wp: 2.25, hp: 1.9, card: 'left', lift: 0 },
 };
 
+// The camera reaches each stop a little before its card appears and leaves only after the card has gone,
+// so a card never fades in while the view is still moving.
 const KEYFRAMES = [
   { at: 0, stop: 'box' },
   { at: 0.18, stop: 'box' },
   { at: 0.32, stop: 'overview' },
   { at: 0.37, stop: 'overview' },
-  { at: 0.46, stop: 'display' },
-  { at: 0.535, stop: 'display' },
-  { at: 0.61, stop: 'computer' },
-  { at: 0.705, stop: 'computer' },
-  { at: 0.78, stop: 'notes' },
-  { at: 0.865, stop: 'notes' },
-  { at: 0.94, stop: 'outro' },
+  { at: 0.445, stop: 'display' },
+  { at: 0.55, stop: 'display' },
+  { at: 0.625, stop: 'computer' },
+  { at: 0.725, stop: 'computer' },
+  { at: 0.8, stop: 'notes' },
+  { at: 0.885, stop: 'notes' },
+  { at: 0.955, stop: 'outro' },
   { at: 1, stop: 'outro' },
 ];
 
@@ -229,7 +231,7 @@ function CameraTour({ progressRef, reducedMotion }) {
     // Shift the rendered image so the focal subject sits in the space the card leaves free.
     camera.setViewOffset(size.width, size.height, -current.current.shiftX * size.width, current.current.shiftY * size.height, size.width, size.height);
     camera.updateProjectionMatrix();
-    if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.info = { calls: gl.info.render.calls, triangles: gl.info.render.triangles };
+    if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.info = { calls: gl.info.render.calls, triangles: gl.info.render.triangles, camera: camera.position.toArray(), shiftX: current.current.shiftX };
   });
 
   return null;
@@ -360,83 +362,6 @@ function Fan({ position, speed = 9, ringRef }) {
         </mesh>
       </group>
     </group>
-  );
-}
-
-// PC tower beside the desk: cream case, smoked glass side, two spinning side fans and themed RGB.
-function PcTower() {
-  const { rgbMode, cycleRgb, reducedMotion } = useRoom();
-  const rings = [useRef(), useRef()];
-  const strip = useRef();
-  const glow = useRef();
-  const color = useMemo(() => new THREE.Color(), []);
-  const palettes = useMemo(() => RGB_THEME.map((value) => new THREE.Color(value)), []);
-  useFrame(({ clock }) => {
-    const time = reducedMotion ? 0 : clock.elapsedTime;
-    const sample = (offset) => {
-      if (rgbMode === 'sunset') return color.copy(palettes[0]).lerp(palettes[3], 0.5 + 0.5 * Math.sin(time * 0.8 + offset));
-      const phase = ((time * 0.35 + offset * 0.18) % 1 + 1) % 1 * palettes.length;
-      const index = Math.floor(phase);
-      return color.copy(palettes[index]).lerp(palettes[(index + 1) % palettes.length], phase - index);
-    };
-    const on = rgbMode !== 'off';
-    rings.forEach((ring, index) => {
-      if (!ring.current) return;
-      ring.current.emissive.copy(sample(index * 1.4));
-      ring.current.emissiveIntensity = on ? 1.6 : 0;
-    });
-    if (strip.current) {
-      strip.current.emissive.copy(sample(2.6));
-      strip.current.emissiveIntensity = on ? 1.4 : 0;
-    }
-    if (glow.current) {
-      glow.current.color.copy(sample(0.7));
-      glow.current.intensity = on ? 1.6 : 0;
-    }
-  });
-  return (
-    <Interactive label={`PC lighting: ${RGB_LABELS[rgbMode]} · click to change`} onSelect={cycleRgb} position={[-S + 0.27, 0, 1.36]} rotation={[0, Math.PI / 2, 0]} labelOffset={[0, 1.2, 0.2]}>
-      {/* Case shell (back part); the open front half sits behind the glass */}
-      <RoundedBox args={[0.78, 0.94, 0.28]} radius={0.03} smoothness={2} position={[0, 0.53, -0.06]} castShadow receiveShadow>
-        <meshStandardMaterial color="#f4e6d4" roughness={0.55} />
-      </RoundedBox>
-      {/* Frame around the glass */}
-      <Block args={[0.78, 0.06, 0.13]} color="#efdcc6" position={[0, 0.97, 0.14]} />
-      <Block args={[0.78, 0.06, 0.13]} color="#efdcc6" position={[0, 0.09, 0.14]} />
-      <Block args={[0.05, 0.94, 0.13]} color="#efdcc6" position={[-0.365, 0.53, 0.14]} />
-      <Block args={[0.05, 0.94, 0.13]} color="#efdcc6" position={[0.365, 0.53, 0.14]} />
-      {/* Feet */}
-      {[[-0.3, -0.12], [0.3, -0.12], [-0.3, 0.14], [0.3, 0.14]].map(([x, z]) => (
-        <Block key={`${x}${z}`} args={[0.08, 0.06, 0.06]} color={palette.timberDark} position={[x, 0.03, z]} castShadow={false} />
-      ))}
-      {/* Interior */}
-      <Block args={[0.68, 0.82, 0.01]} color="#2c2427" position={[0, 0.53, 0.085]} castShadow={false} roughness={0.7} />
-      <Block args={[0.4, 0.08, 0.1]} color="#3a3034" position={[-0.1, 0.4, 0.14]} castShadow={false} />
-      <mesh position={[-0.1, 0.355, 0.19]}>
-        <boxGeometry args={[0.38, 0.012, 0.012]} />
-        <meshStandardMaterial ref={strip} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.4} toneMapped={false} />
-      </mesh>
-      <Block args={[0.13, 0.13, 0.08]} color="#4a3d42" position={[-0.1, 0.7, 0.13]} castShadow={false} />
-      {/* Side fans facing the room */}
-      <group rotation={[0, -Math.PI / 2, 0]} position={[0.2, 0.53, 0.15]}>
-        <Fan position={[0, 0.2, 0]} ringRef={rings[0]} />
-        <Fan position={[0, -0.12, 0]} ringRef={rings[1]} speed={11} />
-      </group>
-      {/* Smoked glass */}
-      <mesh position={[0, 0.53, 0.206]}>
-        <planeGeometry args={[0.68, 0.82]} />
-        <meshStandardMaterial color="#6a5a60" transparent opacity={0.16} roughness={0.05} metalness={0.2} depthWrite={false} />
-      </mesh>
-      {/* Power LED and top vents */}
-      <mesh position={[-0.391, 0.9, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <circleGeometry args={[0.015, 12]} />
-        <meshBasicMaterial color={rgbMode === 'off' ? '#9a8a7a' : '#7ad3c0'} toneMapped={false} />
-      </mesh>
-      {[-0.2, -0.1, 0, 0.1, 0.2].map((x) => (
-        <Block key={x} args={[0.05, 0.004, 0.2]} color="#d9c6ae" position={[x, 1.001, -0.05]} castShadow={false} receiveShadow={false} />
-      ))}
-      <pointLight ref={glow} position={[0, 0.55, 0.45]} intensity={1.6} distance={1.8} decay={2} color="#ff8b55" />
-    </Interactive>
   );
 }
 
@@ -724,7 +649,17 @@ function MonitorScreen({ project, index }) {
 }
 
 function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNext }) {
-  const { goTo, phase, lampOn, toggleLamp } = useRoom();
+  const { goTo, nightRef } = useRoom();
+  const glass = useRef();
+  const dayGlass = useMemo(() => new THREE.Color('#ffd59a'), []);
+  const nightGlass = useMemo(() => new THREE.Color('#3b4f9a'), []);
+  useFrame(() => {
+    if (!glass.current) return;
+    const night = nightRef.current.value;
+    glass.current.emissive.copy(dayGlass).lerp(nightGlass, night);
+    glass.current.color.set(night > 0.5 ? '#2a3768' : '#ffe3b3');
+    glass.current.emissiveIntensity = THREE.MathUtils.lerp(0.75, 0.6, night);
+  });
   const deskX = -S + 0.42; // centre of the desk depth
   return (
     <group>
@@ -733,7 +668,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         <Block args={[1.3, 1.25, 0.08]} color={palette.timber} />
         <mesh position={[0, 0, 0.045]}>
           <planeGeometry args={[1.12, 1.07]} />
-          <meshStandardMaterial color="#ffe3b3" emissive="#ffd59a" emissiveIntensity={0.55} roughness={0.4} />
+          <meshStandardMaterial ref={glass} color="#ffe3b3" emissive="#ffd59a" emissiveIntensity={0.75} roughness={0.4} />
         </mesh>
         <Block args={[0.05, 1.07, 0.04]} color={palette.timber} position={[0, 0, 0.06]} castShadow={false} />
         <Block args={[1.12, 0.05, 0.04]} color={palette.timber} position={[0, 0, 0.06]} castShadow={false} />
@@ -788,7 +723,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         <group position={[-0.18, 1.0, -0.05]} rotation={[0, Math.PI / 2, 0]}>
           <Block args={[0.34, 0.03, 0.22]} color="#e9ddcd" position={[0, 0.015, 0]} roughness={0.5} />
           <Block args={[0.08, 0.32, 0.06]} color="#e9ddcd" position={[0, 0.18, -0.02]} roughness={0.5} />
-          <Interactive label={phase === 'computer' ? 'Next project' : 'See my projects'} onSelect={() => (phase === 'computer' ? onNext() : goTo('computer'))} position={[0, 0.66, 0.02]} labelOffset={[0, 0.6, 0.05]}>
+          <Interactive label={controlsVisible ? 'Next project' : 'See my projects'} onSelect={() => (controlsVisible ? onNext() : goTo('computer'))} position={[0, 0.66, 0.02]} labelOffset={[0, 0.6, 0.05]}>
             <RoundedBox args={[1.32, 0.86, 0.07]} radius={0.04} smoothness={3} castShadow>
               <meshStandardMaterial color="#efe4d6" roughness={0.45} />
             </RoundedBox>
@@ -800,12 +735,12 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
             </mesh>
           </Interactive>
           {/* Arrow controls anchored beside the monitor */}
-          <Html position={[-0.98, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[-1.36, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onPrevious} aria-label="Previous project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowLeft size={22} weight="bold" />
             </button>
           </Html>
-          <Html position={[0.98, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[1.44, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onNext} aria-label="Next project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowRight size={22} weight="bold" />
             </button>
@@ -832,7 +767,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
           <meshStandardMaterial color="#f7f0e6" roughness={0.45} />
         </mesh>
         {/* Speakers */}
-        {[-0.85, 0.75].map((z) => (
+        {[0.75].map((z) => (
           <group key={z} position={[-0.2, 1.0, z]}>
             <RoundedBox args={[0.2, 0.32, 0.2]} radius={0.03} position={[0, 0.16, 0]} castShadow>
               <meshStandardMaterial color="#f2b7c4" roughness={0.6} />
@@ -847,30 +782,14 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
             </mesh>
           </group>
         ))}
-        {/* Desk lamp */}
-        <Interactive label={lampOn ? 'Turn the lamp off' : 'Turn the lamp on'} onSelect={toggleLamp} position={[-0.1, 1.0, -1.05]} labelOffset={[0.1, 0.7, 0]}>
-          <mesh castShadow position={[0, 0.02, 0]}>
-            <cylinderGeometry args={[0.11, 0.12, 0.04, 18]} />
-            <meshStandardMaterial color="#fff3e2" roughness={0.5} />
-          </mesh>
-          <mesh castShadow position={[0.03, 0.24, 0]} rotation={[0, 0, -0.25]}>
-            <cylinderGeometry args={[0.018, 0.018, 0.45, 8]} />
-            <meshStandardMaterial color="#fff3e2" roughness={0.5} />
-          </mesh>
-          <mesh castShadow position={[0.14, 0.44, 0]} rotation={[0, 0, -2.1]}>
-            <coneGeometry args={[0.11, 0.18, 18, 1, true]} />
-            <meshStandardMaterial color="#fff3e2" emissive="#ffd59a" emissiveIntensity={lampOn ? 0.6 : 0} roughness={0.5} side={THREE.DoubleSide} />
-          </mesh>
-          <pointLight position={[0.2, 0.36, 0]} intensity={lampOn ? 1.8 : 0} distance={2.4} color="#ffd59a" />
-        </Interactive>
+        {/* Front-facing PC where the lamp used to be */}
+        <DeskPc />
         {/* Mug */}
-        <mesh position={[0.25, 1.05, -0.75]} castShadow>
+        <mesh position={[0.27, 1.05, -0.6]} castShadow>
           <cylinderGeometry args={[0.055, 0.05, 0.11, 14]} />
           <meshStandardMaterial color="#7cc9a0" roughness={0.6} />
         </mesh>
       </group>
-
-      <PcTower />
 
       {/* Chair */}
       <group position={[-S + 1.3, 0, -0.3]} rotation={[0, -0.25, 0]}>
@@ -1012,7 +931,29 @@ function GroundShadow() {
   );
 }
 
+function RoomFill() {
+  const { lightRef, nightRef } = useRoom();
+  const light = useRef();
+  useFrame(() => {
+    if (light.current) light.current.intensity = lightRef.current.value * THREE.MathUtils.lerp(3.2, 4.2, nightRef.current.value);
+  });
+  return <pointLight ref={light} position={[0.5, 2.6, 0.5]} intensity={3.2} distance={8} decay={1.6} color="#ffd6a3" />;
+}
+
 function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVisible, onPrevious, onNext }) {
+  const { theme } = useRoom();
+  // Stable elements: changing the visible card re-renders only the workstation, not the whole room.
+  const staticRoom = useMemo(() => (
+    <>
+      <DisplayWall />
+      <NotesTable />
+      <Couch />
+      <Cat />
+      <WallLamp />
+      <WindowLight />
+    </>
+  ), []);
+  const firefly = useMemo(() => <Firefly />, []);
   const outer = useRef();
   const lid = useRef();
   const front = useRef();
@@ -1097,44 +1038,108 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
           </mesh>
         </group>
 
-        <DisplayWall />
+        {staticRoom}
         <Workstation project={project} projectIndex={projectIndex} controlsVisible={controlsVisible} onPrevious={onPrevious} onNext={onNext} />
-        <NotesTable />
+        {theme === 'night' && firefly}
 
-        {/* Warm interior fill */}
-        <pointLight position={[0.5, 2.6, 0.5]} intensity={3.2} distance={8} decay={1.6} color="#ffd6a3" />
+        {/* Warm interior fill (the room light) */}
+        <RoomFill />
       </group>
     </group>
   );
 }
 
-function Backdrop() {
-  return (
-    <mesh position={[0, 0, -40]} scale={[200, 120, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <shaderMaterial
-        depthWrite={false}
-        vertexShader={'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'}
-        fragmentShader={'varying vec2 vUv; void main() { vec3 top = vec3(1.0, 0.93, 0.74); vec3 bottom = vec3(0.98, 0.55, 0.2); float t = smoothstep(0.2, 0.75, vUv.y); gl_FragColor = vec4(mix(bottom, top, t), 1.0); }'}
-      />
-    </mesh>
-  );
+/* ------------------------------------------------------------------ */
+/* Day / night: sky wheel with sun, moon and stars                      */
+/* ------------------------------------------------------------------ */
+
+const DAY = {
+  hemiSky: new THREE.Color('#fff4e2'), hemiGround: new THREE.Color('#d08a52'), hemi: 1.25,
+  key: new THREE.Color('#fff0d8'), keyIntensity: 1.9, ambient: 0.25,
+  fill: new THREE.Color('#ffd6a3'), background: new THREE.Color('#f9a54f'),
+};
+const NIGHT = {
+  hemiSky: new THREE.Color('#5a6aa8'), hemiGround: new THREE.Color('#2a2440'), hemi: 0.5,
+  key: new THREE.Color('#9fb4ff'), keyIntensity: 0.42, ambient: 0.12,
+  fill: new THREE.Color('#ffc983'), background: new THREE.Color('#0d1430'),
+};
+
+function radialTexture(stops, size = 128) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
-function RoomScene(props) {
+function moonTexture() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff6dc';
+  context.beginPath();
+  context.arc(128, 128, 120, 0, Math.PI * 2);
+  context.fill();
+  context.globalCompositeOperation = 'destination-out';
+  context.beginPath();
+  context.arc(178, 96, 112, 0, Math.PI * 2);
+  context.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// Eased 0 (day) → 1 (night) and 1 (lights on) → 0 (off), animated once per frame for the whole scene.
+function ThemeDriver() {
+  const { nightRef, lightRef, reducedMotion } = useRoom();
+  useFrame((_, delta) => {
+    [[nightRef, 1.7], [lightRef, 0.6]].forEach(([ref, duration]) => {
+      const state = ref.current;
+      if (reducedMotion) state.raw = state.target;
+      else state.raw += Math.sign(state.target - state.raw) * Math.min(Math.abs(state.target - state.raw), delta / duration);
+      state.value = smooth(state.raw);
+    });
+  });
+  return null;
+}
+
+function SceneLighting() {
+  const { nightRef, lightRef } = useRoom();
+  const hemi = useRef();
+  const ambient = useRef();
+  const key = useRef();
+  const { scene } = useThree();
+  useFrame(() => {
+    const night = nightRef.current.value;
+    const light = lightRef.current.value;
+    if (hemi.current) {
+      hemi.current.color.copy(DAY.hemiSky).lerp(NIGHT.hemiSky, night);
+      hemi.current.groundColor.copy(DAY.hemiGround).lerp(NIGHT.hemiGround, night);
+      // Switching the room light off dims the bounce light as well; more so at night.
+      hemi.current.intensity = THREE.MathUtils.lerp(DAY.hemi, NIGHT.hemi, night) * THREE.MathUtils.lerp(1 - 0.25 - 0.45 * night, 1, light);
+    }
+    if (ambient.current) ambient.current.intensity = THREE.MathUtils.lerp(DAY.ambient, NIGHT.ambient, night) * THREE.MathUtils.lerp(0.7 - 0.45 * night, 1, light);
+    if (key.current) {
+      key.current.color.copy(DAY.key).lerp(NIGHT.key, night);
+      key.current.intensity = THREE.MathUtils.lerp(DAY.keyIntensity, NIGHT.keyIntensity, night) * THREE.MathUtils.lerp(0.78, 1, light);
+    }
+    if (scene.background?.isColor) scene.background.copy(DAY.background).lerp(NIGHT.background, night);
+  });
   return (
-    <Canvas
-      className="box-tour-canvas"
-      camera={{ position: [0, 3, 18], fov: FOV, near: 0.1, far: 120 }}
-      dpr={[1, 1.25]}
-      shadows={{ type: THREE.PCFShadowMap }}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-    >
-      <color attach="background" args={['#f9a54f']} />
-      <Backdrop />
-      <hemisphereLight args={['#fff4e2', '#d08a52', 1.25]} />
-      <ambientLight intensity={0.25} />
+    <>
+      <hemisphereLight ref={hemi} args={['#fff4e2', '#d08a52', 1.25]} />
+      <ambientLight ref={ambient} intensity={0.25} />
       <directionalLight
+        ref={key}
         castShadow
         position={[6, 10, 7]}
         intensity={1.9}
@@ -1150,7 +1155,867 @@ function RoomScene(props) {
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
       />
+    </>
+  );
+}
+
+function Backdrop() {
+  const { nightRef } = useRoom();
+  const material = useRef();
+  const uniforms = useMemo(() => ({ uNight: { value: 0 } }), []);
+  useFrame(() => { if (material.current) material.current.uniforms.uNight.value = nightRef.current.value; });
+  return (
+    <mesh position={[0, 0, -40]} scale={[200, 120, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        ref={material}
+        depthWrite={false}
+        uniforms={uniforms}
+        vertexShader={'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'}
+        fragmentShader={`uniform float uNight; varying vec2 vUv;
+          void main() {
+            float t = smoothstep(0.2, 0.75, vUv.y);
+            vec3 day = mix(vec3(0.98, 0.55, 0.2), vec3(1.0, 0.93, 0.74), t);
+            vec3 night = mix(vec3(0.11, 0.16, 0.36), vec3(0.03, 0.05, 0.14), t);
+            gl_FragColor = vec4(mix(day, night, uNight), 1.0);
+          }`}
+      />
+    </mesh>
+  );
+}
+
+const SKY_RADIUS = 13;
+const SKY_DEPTH = -16;
+
+// The sun sits in the top-left corner of the overview framing; clicking it turns the sky wheel half a turn
+// so the sun sets and the moon rises into the same spot.
+function SkyWheel() {
+  const { nightRef, toggleTheme, theme } = useRoom();
+  const { size } = useThree();
+  const wheel = useRef();
+  const sunGroup = useRef();
+  const moonGroup = useRef();
+  const sunMaterials = useRef([]);
+  const moonMaterials = useRef([]);
+  const starMaterial = useRef();
+  const sunHalo = useMemo(() => radialTexture([[0, 'rgba(255,240,190,0.95)'], [0.25, 'rgba(255,214,140,0.55)'], [1, 'rgba(255,190,110,0)']]), []);
+  const moonHalo = useMemo(() => radialTexture([[0, 'rgba(210,225,255,0.55)'], [1, 'rgba(160,180,255,0)']]), []);
+  const moonMap = useMemo(() => moonTexture(), []);
+
+  const { pivot, sunOffset } = useMemo(() => {
+    const frame = frameStop(STOPS.overview, size.width, size.height);
+    const aspect = size.width / size.height;
+    const camera = new THREE.PerspectiveCamera(FOV, aspect, 0.1, 120);
+    camera.position.copy(frame.position);
+    camera.lookAt(frame.look);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    const portrait = aspect < 0.95;
+    const screenX = portrait ? 0.18 : 0.12;
+    const screenY = portrait ? 0.15 : 0.13;
+    const point = new THREE.Vector3(screenX * 2 - 1, 1 - screenY * 2, 0.5).unproject(camera);
+    const direction = point.sub(camera.position).normalize();
+    const sun = camera.position.clone().addScaledVector(direction, (SKY_DEPTH - camera.position.z) / direction.z);
+    const offset = new THREE.Vector3(-Math.SQRT1_2, Math.SQRT1_2, 0).multiplyScalar(SKY_RADIUS);
+    return { pivot: sun.clone().sub(offset), sunOffset: offset };
+  }, [size.width, size.height]);
+
+  const stars = useMemo(() => {
+    const positions = new Float32Array(420 * 3);
+    let seed = 7;
+    const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let index = 0; index < 420; index += 1) {
+      const angle = random() * Math.PI * 2;
+      const radius = 4 + Math.sqrt(random()) * 34;
+      positions[index * 3] = Math.cos(angle) * radius;
+      positions[index * 3 + 1] = Math.sin(angle) * radius;
+      positions[index * 3 + 2] = -2 - random() * 2;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return geometry;
+  }, []);
+
+  useFrame(({ clock }) => {
+    const night = nightRef.current.value;
+    if (wheel.current) wheel.current.rotation.z = night * Math.PI;
+    const sunHeight = 1 - night;
+    sunMaterials.current.forEach((material) => { if (material) material.opacity = THREE.MathUtils.clamp(sunHeight * 1.6 - 0.3, 0, 1); });
+    moonMaterials.current.forEach((material) => { if (material) material.opacity = THREE.MathUtils.clamp(night * 1.6 - 0.3, 0, 1); });
+    if (starMaterial.current) starMaterial.current.opacity = THREE.MathUtils.clamp(night * 1.3 - 0.25, 0, 1) * (0.85 + 0.15 * Math.sin(clock.elapsedTime * 2.1));
+    if (sunGroup.current) sunGroup.current.rotation.z = -wheel.current.rotation.z + clock.elapsedTime * 0.15;
+    if (moonGroup.current) moonGroup.current.rotation.z = -wheel.current.rotation.z;
+  });
+
+  return (
+    <group ref={wheel} position={pivot}>
+      <points geometry={stars}>
+        <pointsMaterial ref={starMaterial} color="#fff6dc" size={2.2} sizeAttenuation={false} transparent opacity={0} depthWrite={false} />
+      </points>
+      <Interactive label={theme === 'day' ? 'Switch to night' : 'Night mode is on'} onSelect={toggleTheme} position={sunOffset} labelOffset={[0, -1.5, 0]}>
+        <group ref={sunGroup}>
+          <mesh>
+            <circleGeometry args={[0.72, 40]} />
+            <meshBasicMaterial ref={(material) => { sunMaterials.current[0] = material; }} color="#ffe08a" transparent toneMapped={false} />
+          </mesh>
+          {Array.from({ length: 10 }, (_, ray) => (
+            <mesh key={ray} rotation={[0, 0, (ray / 10) * Math.PI * 2]} position={[Math.cos((ray / 10) * Math.PI * 2) * 1.02, Math.sin((ray / 10) * Math.PI * 2) * 1.02, 0]}>
+              <planeGeometry args={[0.34, 0.1]} />
+              <meshBasicMaterial ref={(material) => { sunMaterials.current[ray + 2] = material; }} color="#ffd36b" transparent toneMapped={false} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[4.4, 4.4]} />
+            <meshBasicMaterial ref={(material) => { sunMaterials.current[1] = material; }} map={sunHalo} transparent depthWrite={false} toneMapped={false} />
+          </mesh>
+        </group>
+      </Interactive>
+      <Interactive label={theme === 'night' ? 'Switch to day' : 'Day mode is on'} onSelect={toggleTheme} position={sunOffset.clone().negate()} labelOffset={[0, -1.5, 0]}>
+        <group ref={moonGroup}>
+          <mesh>
+            <planeGeometry args={[1.5, 1.5]} />
+            <meshBasicMaterial ref={(material) => { moonMaterials.current[0] = material; }} map={moonMap} transparent depthWrite={false} toneMapped={false} />
+          </mesh>
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[4, 4]} />
+            <meshBasicMaterial ref={(material) => { moonMaterials.current[1] = material; }} map={moonHalo} transparent depthWrite={false} toneMapped={false} />
+          </mesh>
+        </group>
+      </Interactive>
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Window light: visible beam, floor patch, dust and a spot light        */
+/* ------------------------------------------------------------------ */
+
+const WINDOW = { x: -S + 0.05, y0: 1.515, y1: 2.585, z0: 1.39, z1: 2.51 };
+const SUN_DIR = new THREE.Vector3(1, -0.78, -0.3).normalize();
+
+function projectToFloor(x, y, z) {
+  const t = y / -SUN_DIR.y;
+  return [x + SUN_DIR.x * t, 0.018, z + SUN_DIR.z * t];
+}
+
+function WindowLight() {
+  const { nightRef, reducedMotion } = useRoom();
+  const beam = useRef();
+  const patch = useRef();
+  const spot = useRef();
+  const dust = useRef();
+  const target = useMemo(() => new THREE.Object3D(), []);
+  const { geometry, patchGeometry, center } = useMemo(() => {
+    const top = [[WINDOW.y1, WINDOW.z0], [WINDOW.y1, WINDOW.z1], [WINDOW.y0, WINDOW.z1], [WINDOW.y0, WINDOW.z0]].map(([y, z]) => [WINDOW.x, y, z]);
+    const floor = top.map(([x, y, z]) => projectToFloor(x, y, z));
+    const positions = [];
+    const along = [];
+    const across = [];
+    for (let side = 0; side < 4; side += 1) {
+      const next = (side + 1) % 4;
+      const quad = [[top[side], 0, 0], [top[next], 0, 1], [floor[next], 1, 1], [top[side], 0, 0], [floor[next], 1, 1], [floor[side], 1, 0]];
+      quad.forEach(([point, t, u]) => { positions.push(...point); along.push(t); across.push(u); });
+    }
+    const beamGeometry = new THREE.BufferGeometry();
+    beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    beamGeometry.setAttribute('along', new THREE.Float32BufferAttribute(along, 1));
+    beamGeometry.setAttribute('across', new THREE.Float32BufferAttribute(across, 1));
+    const patchShape = new THREE.BufferGeometry();
+    const p = floor;
+    patchShape.setAttribute('position', new THREE.Float32BufferAttribute([...p[0], ...p[1], ...p[2], ...p[0], ...p[2], ...p[3]], 3));
+    patchShape.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0], 2));
+    const middle = new THREE.Vector3();
+    p.forEach((point) => middle.add(new THREE.Vector3(...point)));
+    middle.multiplyScalar(0.25);
+    return { geometry: beamGeometry, patchGeometry: patchShape, center: middle };
+  }, []);
+  const beamUniforms = useMemo(() => ({ uColor: { value: new THREE.Color('#ffd89a') }, uStrength: { value: 0.3 } }), []);
+  const patchUniforms = useMemo(() => ({ uColor: { value: new THREE.Color('#ffe2a8') }, uStrength: { value: 0.5 } }), []);
+  const dayColor = useMemo(() => new THREE.Color('#ffd89a'), []);
+  const moonColor = useMemo(() => new THREE.Color('#9fb6ff'), []);
+  const dust3 = useMemo(() => {
+    const count = 40;
+    const positions = new Float32Array(count * 3);
+    const seeds = new Float32Array(count);
+    for (let index = 0; index < count; index += 1) {
+      const t = Math.random();
+      const y = THREE.MathUtils.lerp(WINDOW.y0, WINDOW.y1, Math.random());
+      const z = THREE.MathUtils.lerp(WINDOW.z0, WINDOW.z1, Math.random());
+      const floor = projectToFloor(WINDOW.x, y, z);
+      positions[index * 3] = THREE.MathUtils.lerp(WINDOW.x, floor[0], t);
+      positions[index * 3 + 1] = THREE.MathUtils.lerp(y, floor[1], t);
+      positions[index * 3 + 2] = THREE.MathUtils.lerp(z, floor[2], t);
+      seeds[index] = Math.random() * 10;
+    }
+    const geometryDust = new THREE.BufferGeometry();
+    geometryDust.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return { geometry: geometryDust, base: positions.slice(), seeds };
+  }, []);
+
+  useFrame(({ clock }) => {
+    const night = nightRef.current.value;
+    const color = dayColor.clone().lerp(moonColor, night);
+    beamUniforms.uColor.value.copy(color);
+    beamUniforms.uStrength.value = THREE.MathUtils.lerp(0.22, 0.09, night);
+    patchUniforms.uColor.value.copy(color);
+    patchUniforms.uStrength.value = THREE.MathUtils.lerp(0.55, 0.22, night);
+    if (spot.current) {
+      spot.current.intensity = THREE.MathUtils.lerp(6, 2.2, night);
+      spot.current.color.copy(color);
+    }
+    if (dust.current) {
+      dust.current.material.opacity = THREE.MathUtils.lerp(0.85, 0.25, night);
+      if (!reducedMotion) {
+        const array = dust3.geometry.attributes.position.array;
+        const time = clock.elapsedTime;
+        for (let index = 0; index < dust3.seeds.length; index += 1) {
+          const seed = dust3.seeds[index];
+          array[index * 3] = dust3.base[index * 3] + Math.sin(time * 0.3 + seed) * 0.06;
+          array[index * 3 + 1] = dust3.base[index * 3 + 1] + Math.sin(time * 0.22 + seed * 1.7) * 0.08;
+          array[index * 3 + 2] = dust3.base[index * 3 + 2] + Math.cos(time * 0.26 + seed) * 0.06;
+        }
+        dust3.geometry.attributes.position.needsUpdate = true;
+      }
+    }
+  });
+
+  return (
+    <group>
+      <mesh ref={beam} geometry={geometry} renderOrder={2}>
+        <shaderMaterial
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          side={THREE.DoubleSide}
+          uniforms={beamUniforms}
+          vertexShader={'attribute float along; attribute float across; varying float vAlong; varying float vAcross; void main() { vAlong = along; vAcross = across; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'}
+          fragmentShader={'uniform vec3 uColor; uniform float uStrength; varying float vAlong; varying float vAcross; void main() { float edge = smoothstep(0.0, 0.22, vAcross) * smoothstep(1.0, 0.78, vAcross); float fall = pow(1.0 - vAlong, 1.3) * 0.75 + 0.25 * (1.0 - vAlong); gl_FragColor = vec4(uColor * uStrength * fall * (0.35 + 0.65 * edge), 1.0); }'}
+        />
+      </mesh>
+      <mesh ref={patch} geometry={patchGeometry} renderOrder={1}>
+        <shaderMaterial
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          uniforms={patchUniforms}
+          vertexShader={'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'}
+          fragmentShader={'uniform vec3 uColor; uniform float uStrength; varying vec2 vUv; void main() { vec2 d = min(vUv, 1.0 - vUv); float soft = smoothstep(0.0, 0.08, d.x) * smoothstep(0.0, 0.08, d.y); float bars = step(0.035, abs(vUv.x - 0.5)) * step(0.035, abs(vUv.y - 0.5)); gl_FragColor = vec4(uColor * uStrength * soft * mix(0.35, 1.0, bars), 1.0); }'}
+        />
+      </mesh>
+      <points ref={dust} geometry={dust3.geometry}>
+        <pointsMaterial color="#fff3cf" size={2.4} sizeAttenuation={false} transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </points>
+      <primitive object={target} position={center} />
+      <spotLight
+        ref={spot}
+        position={[WINDOW.x - SUN_DIR.x * 2.2, 2.05 - SUN_DIR.y * 2.2, 1.95 - SUN_DIR.z * 2.2]}
+        target={target}
+        angle={0.55}
+        penumbra={0.85}
+        intensity={9}
+        distance={9}
+        decay={1.4}
+        color="#ffd89a"
+      />
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Wall lamp (room light switch)                                        */
+/* ------------------------------------------------------------------ */
+
+function WallLamp() {
+  const { lightOn, toggleLight, lightRef, nightRef } = useRoom();
+  const bulb = useRef();
+  const halo = useRef();
+  const glow = useRef();
+  const haloMap = useMemo(() => radialTexture([[0, 'rgba(255,226,160,0.9)'], [0.3, 'rgba(255,210,140,0.35)'], [1, 'rgba(255,200,120,0)']]), []);
+  useFrame(() => {
+    const light = lightRef.current.value;
+    const night = nightRef.current.value;
+    if (bulb.current) bulb.current.emissiveIntensity = 0.15 + light * (1.4 + night * 0.8);
+    if (halo.current) halo.current.opacity = light * (0.45 + night * 0.4);
+    if (glow.current) glow.current.intensity = light * (0.8 + night * 1.8);
+  });
+  return (
+    <Interactive label={lightOn ? 'Turn the room light off' : 'Turn the room light on'} onSelect={toggleLight} position={[-2.28, 2.42, -S + 0.02]} labelOffset={[0, 0.55, 0.2]}>
+      {/* Round wooden wall plate */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.12, 0.02]} castShadow>
+        <cylinderGeometry args={[0.1, 0.1, 0.04, 20]} />
+        <meshStandardMaterial color={palette.timber} roughness={0.7} />
+      </mesh>
+      {/* Brass arm */}
+      <mesh position={[0, 0.12, 0.13]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.014, 0.014, 0.2, 8]} />
+        <meshStandardMaterial color="#d6a65a" roughness={0.35} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.06, 0.23]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.12, 8]} />
+        <meshStandardMaterial color="#d6a65a" roughness={0.35} metalness={0.4} />
+      </mesh>
+      {/* Bell shade, open at the bottom */}
+      <mesh position={[0, -0.03, 0.23]} castShadow>
+        <cylinderGeometry args={[0.07, 0.17, 0.16, 24, 1, true]} />
+        <meshStandardMaterial color="#f7a8b8" roughness={0.6} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Globe bulb */}
+      <mesh position={[0, -0.1, 0.23]}>
+        <sphereGeometry args={[0.07, 18, 14]} />
+        <meshStandardMaterial ref={bulb} color="#fff3d6" emissive="#ffd38a" emissiveIntensity={1.4} roughness={0.3} toneMapped={false} />
+      </mesh>
+      <sprite position={[0, -0.12, 0.26]} scale={[0.9, 0.9, 1]}>
+        <spriteMaterial ref={halo} map={haloMap} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </sprite>
+      <pointLight ref={glow} position={[0, -0.2, 0.35]} intensity={0.8} distance={3.2} decay={1.8} color="#ffd59a" />
+    </Interactive>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Desk PC: front-facing case with two front fans and themed RGB         */
+/* ------------------------------------------------------------------ */
+
+function useRgbColor() {
+  const color = useMemo(() => new THREE.Color(), []);
+  const palettes = useMemo(() => RGB_THEME.map((value) => new THREE.Color(value)), []);
+  return useCallback((mode, time, offset) => {
+    if (mode === 'sunset') return color.copy(palettes[0]).lerp(palettes[3], 0.5 + 0.5 * Math.sin(time * 0.8 + offset));
+    const phase = ((((time * 0.35 + offset * 0.18) % 1) + 1) % 1) * palettes.length;
+    const index = Math.floor(phase);
+    return color.copy(palettes[index]).lerp(palettes[(index + 1) % palettes.length], phase - index);
+  }, [color, palettes]);
+}
+
+function DeskPc() {
+  const { rgbMode, cycleRgb, reducedMotion } = useRoom();
+  const rings = [useRef(), useRef()];
+  const strips = [useRef(), useRef()];
+  const glow = useRef();
+  const sample = useRgbColor();
+  useFrame(({ clock }) => {
+    const time = reducedMotion ? 0 : clock.elapsedTime;
+    const on = rgbMode !== 'off';
+    rings.forEach((ring, index) => {
+      if (!ring.current) return;
+      ring.current.emissive.copy(sample(rgbMode, time, index * 1.4));
+      ring.current.emissiveIntensity = on ? 1.7 : 0;
+    });
+    strips.forEach((strip, index) => {
+      if (!strip.current) return;
+      strip.current.emissive.copy(sample(rgbMode, time, 2.6 + index));
+      strip.current.emissiveIntensity = on ? 1.5 : 0;
+    });
+    if (glow.current) {
+      glow.current.color.copy(sample(rgbMode, time, 0.7));
+      glow.current.intensity = on ? 1.3 : 0;
+    }
+  });
+  // Desk-local placement: the front (+x) faces into the room.
+  const W = 0.34; // case width along the desk (z)
+  const D = 0.56; // depth (x)
+  const HT = 0.64; // height
+  return (
+    <Interactive label={`PC lighting: ${RGB_LABELS[rgbMode]} · click to change`} onSelect={cycleRgb} position={[-0.1, 0.995, -1.0]} labelOffset={[0.2, HT + 0.25, 0]}>
+      {/* Shell */}
+      <RoundedBox args={[D, HT, W]} radius={0.025} smoothness={2} position={[0, HT / 2 + 0.03, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#f4e6d4" roughness={0.55} />
+      </RoundedBox>
+      {[[-0.2, -0.12], [-0.2, 0.12], [0.2, -0.12], [0.2, 0.12]].map(([x, z]) => (
+        <Block key={`${x}${z}`} args={[0.06, 0.03, 0.05]} color={palette.timberDark} position={[x, 0.015, z]} castShadow={false} />
+      ))}
+      {/* Recessed dark front with mesh look */}
+      <Block args={[0.012, HT - 0.07, W - 0.06]} color="#2c2427" position={[D / 2 + 0.002, HT / 2 + 0.03, 0]} castShadow={false} roughness={0.75} />
+      {/* Two front fans */}
+      <group position={[D / 2 + 0.012, 0, 0]} scale={1.08}>
+        <Fan position={[0, (HT * 0.72 + 0.03) / 1.08, 0]} ringRef={rings[0]} />
+        <Fan position={[0, (HT * 0.32 + 0.03) / 1.08, 0]} ringRef={rings[1]} speed={11} />
+      </group>
+      {/* RGB edge strips on the front */}
+      {[-1, 1].map((side, index) => (
+        <mesh key={side} position={[D / 2 + 0.008, HT / 2 + 0.03, side * (W / 2 - 0.018)]}>
+          <boxGeometry args={[0.01, HT - 0.1, 0.012]} />
+          <meshStandardMaterial ref={strips[index]} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.5} toneMapped={false} />
+        </mesh>
+      ))}
+      {/* Power button */}
+      <mesh position={[D / 2 - 0.06, HT + 0.031, 0.1]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.018, 14]} />
+        <meshBasicMaterial color={rgbMode === 'off' ? '#9a8a7a' : '#7ad3c0'} toneMapped={false} />
+      </mesh>
+      {/* Top vents */}
+      {[-0.15, -0.07, 0.01, 0.09].map((x) => (
+        <Block key={x} args={[0.045, 0.004, 0.22]} color="#d9c6ae" position={[x, HT + 0.032, -0.02]} castShadow={false} receiveShadow={false} />
+      ))}
+      <pointLight ref={glow} position={[D / 2 + 0.35, HT / 2, 0]} intensity={1.3} distance={1.6} decay={2} color="#ff8b55" />
+    </Interactive>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Small couch facing the notes table                                   */
+/* ------------------------------------------------------------------ */
+
+const COUCH = { position: [-0.35, 0, -0.78], yaw: 0.62, seatY: 0.45 };
+const couchToRoom = (x, z) => {
+  const cos = Math.cos(COUCH.yaw);
+  const sin = Math.sin(COUCH.yaw);
+  return [COUCH.position[0] + x * cos + z * sin, COUCH.position[2] - x * sin + z * cos];
+};
+
+function Couch() {
+  const fabric = '#8ec5b8';
+  const fabricDark = '#76b0a3';
+  return (
+    <group position={COUCH.position} rotation={[0, COUCH.yaw, 0]}>
+      {[[-0.52, -0.25], [0.52, -0.25], [-0.52, 0.25], [0.52, 0.25]].map(([x, z]) => (
+        <mesh key={`${x}${z}`} position={[x, 0.05, z]} castShadow>
+          <cylinderGeometry args={[0.03, 0.022, 0.1, 8]} />
+          <meshStandardMaterial color={palette.timberDark} roughness={0.7} />
+        </mesh>
+      ))}
+      <RoundedBox args={[1.3, 0.22, 0.72]} radius={0.06} smoothness={2} position={[0, 0.21, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color={fabricDark} roughness={0.9} />
+      </RoundedBox>
+      {[-0.27, 0.27].map((x) => (
+        <RoundedBox key={x} args={[0.54, 0.13, 0.58]} radius={0.05} smoothness={2} position={[x, 0.385, 0.05]} castShadow receiveShadow>
+          <meshStandardMaterial color={fabric} roughness={0.9} />
+        </RoundedBox>
+      ))}
+      <RoundedBox args={[1.3, 0.46, 0.18]} radius={0.07} smoothness={2} position={[0, 0.52, -0.28]} castShadow receiveShadow>
+        <meshStandardMaterial color={fabric} roughness={0.9} />
+      </RoundedBox>
+      {[-0.6, 0.6].map((x) => (
+        <RoundedBox key={x} args={[0.16, 0.36, 0.72]} radius={0.06} smoothness={2} position={[x, 0.4, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color={fabricDark} roughness={0.9} />
+        </RoundedBox>
+      ))}
+      {/* Throw pillow and blanket */}
+      <RoundedBox args={[0.3, 0.28, 0.1]} radius={0.05} smoothness={2} position={[-0.36, 0.58, -0.14]} rotation={[-0.25, 0.25, 0.12]} castShadow>
+        <meshStandardMaterial color="#f6c453" roughness={0.85} />
+      </RoundedBox>
+      <Block args={[0.42, 0.02, 0.6]} color="#f7a8b8" position={[0.3, 0.462, 0.06]} roughness={0.95} castShadow={false} />
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Cat: walks a loop around the room, then naps on the couch             */
+/* ------------------------------------------------------------------ */
+
+const CAT_SEAT = (() => { const [x, z] = couchToRoom(0.28, 0.06); return new THREE.Vector3(x, COUCH.seatY + 0.02, z); })();
+const CAT_HOP = (() => { const [x, z] = couchToRoom(0.28, 0.66); return new THREE.Vector3(x, 0, z); })();
+const CAT_PATH = [
+  CAT_HOP,
+  new THREE.Vector3(1.0, 0, -1.62),
+  new THREE.Vector3(2.3, 0, -0.7),
+  new THREE.Vector3(2.42, 0, 1.3),
+  new THREE.Vector3(1.6, 0, 2.5),
+  new THREE.Vector3(0.0, 0, 2.5),
+  new THREE.Vector3(-1.2, 0, 1.6),
+  new THREE.Vector3(-1.0, 0, 0.45),
+];
+const CAT_SPEED = 0.48;
+const CAT_LOOPS = 2;
+const CAT_NAP = 28;
+
+const angleLerp = (from, to, t) => {
+  let delta = (to - from) % (Math.PI * 2);
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  if (delta < -Math.PI) delta += Math.PI * 2;
+  return from + delta * t;
+};
+
+function Cat() {
+  const { reducedMotion, nightRef, lightRef } = useRoom();
+  const root = useRef();
+  const body = useRef();
+  const head = useRef();
+  const tail = useRef();
+  const tailSegments = [useRef(), useRef(), useRef(), useRef()];
+  const legs = [useRef(), useRef(), useRef(), useRef()];
+  const eyesOpen = useRef();
+  const eyesClosed = useRef();
+  const eyeMaterial = useRef();
+  const zs = [useRef(), useRef(), useRef()];
+  const [bubble, setBubble] = useState(null);
+  const bubbleTimer = useRef(0);
+  const state = useRef({ mode: reducedMotion ? 'sleep' : 'walk', segment: 0, along: 0, loops: 0, timer: 0, yaw: 0, from: new THREE.Vector3(), to: new THREE.Vector3() });
+
+  useEffect(() => { if (reducedMotion) state.current.mode = 'sleep'; }, [reducedMotion]);
+  useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
+
+  const say = useCallback((text) => {
+    setBubble(text);
+    window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = window.setTimeout(() => setBubble(null), 2200);
+  }, []);
+
+  const onPet = useCallback(() => {
+    const cat = state.current;
+    if (cat.mode === 'sleep') {
+      say('mrrp? ♥');
+      if (!reducedMotion) { cat.mode = 'stretch'; cat.timer = 0; }
+    } else if (cat.mode === 'walk') {
+      say('meow ♥');
+      cat.mode = 'sit';
+      cat.timer = 0;
+    } else {
+      say('purr…');
+    }
+  }, [reducedMotion, say]);
+
+  useFrame(({ clock }, rawDelta) => {
+    const delta = Math.min(rawDelta, 0.1);
+    const cat = state.current;
+    const time = clock.elapsedTime;
+    if (!root.current) return;
+    let position = root.current.position;
+    let walking = false;
+    let sleeping = false;
+    let sitting = false;
+    let targetYaw = cat.yaw;
+    let lift = 0;
+
+    if (cat.mode === 'walk') {
+      walking = true;
+      const a = CAT_PATH[cat.segment];
+      const b = CAT_PATH[(cat.segment + 1) % CAT_PATH.length];
+      const length = a.distanceTo(b);
+      cat.along += CAT_SPEED * delta;
+      if (cat.along >= length) {
+        cat.along -= length;
+        cat.segment = (cat.segment + 1) % CAT_PATH.length;
+        if (cat.segment === 0) {
+          cat.loops += 1;
+          if (cat.loops >= (window.__tourDebug?.catLoops ?? CAT_LOOPS)) {
+            cat.mode = 'hopUp';
+            cat.timer = 0;
+            cat.loops = 0;
+          }
+        }
+      }
+      const from = CAT_PATH[cat.segment];
+      const to = CAT_PATH[(cat.segment + 1) % CAT_PATH.length];
+      const t = Math.min(1, cat.along / from.distanceTo(to));
+      position.lerpVectors(from, to, t);
+      targetYaw = Math.atan2(to.x - from.x, to.z - from.z);
+    } else if (cat.mode === 'sit') {
+      sitting = true;
+      cat.timer += delta;
+      if (cat.timer > 2.6) cat.mode = 'walk';
+    } else if (cat.mode === 'hopUp' || cat.mode === 'hopDown') {
+      cat.timer += delta;
+      const up = cat.mode === 'hopUp';
+      if (cat.timer < 0.5) {
+        // Turn toward the couch (or away from it) before the hop.
+        targetYaw = up ? Math.atan2(CAT_SEAT.x - CAT_HOP.x, CAT_SEAT.z - CAT_HOP.z) : Math.atan2(CAT_HOP.x - CAT_SEAT.x, CAT_HOP.z - CAT_SEAT.z);
+        sitting = true;
+      } else {
+        const t = Math.min(1, (cat.timer - 0.5) / 0.55);
+        const from = up ? CAT_HOP : CAT_SEAT;
+        const to = up ? CAT_SEAT : CAT_HOP;
+        position.lerpVectors(from, to, t);
+        lift = Math.sin(t * Math.PI) * 0.32;
+        if (t >= 1) {
+          cat.mode = up ? 'curl' : 'walk';
+          cat.timer = 0;
+          if (!up) { cat.segment = 0; cat.along = 0; }
+        }
+      }
+    } else if (cat.mode === 'curl') {
+      cat.timer += delta;
+      targetYaw = COUCH.yaw - Math.PI / 2 + 0.35;
+      sitting = cat.timer < 0.6;
+      if (cat.timer > 0.9) { cat.mode = 'sleep'; cat.timer = 0; }
+    } else if (cat.mode === 'sleep') {
+      sleeping = true;
+      position.copy(CAT_SEAT);
+      targetYaw = COUCH.yaw - Math.PI / 2 + 0.35;
+      cat.timer += delta;
+      if (!reducedMotion && cat.timer > CAT_NAP) { cat.mode = 'stretch'; cat.timer = 0; }
+    } else if (cat.mode === 'stretch') {
+      sitting = true;
+      position.copy(CAT_SEAT);
+      cat.timer += delta;
+      if (cat.timer > 1.3) { cat.mode = 'hopDown'; cat.timer = 0; }
+    }
+
+    position.y = (cat.mode === 'sleep' || cat.mode === 'curl' || cat.mode === 'stretch' ? CAT_SEAT.y : position.y) + lift;
+    if (cat.mode === 'hopUp' && cat.timer < 0.5) position.copy(CAT_HOP);
+    if (cat.mode === 'hopDown' && cat.timer < 0.5) position.copy(CAT_SEAT);
+
+    cat.yaw = reducedMotion ? targetYaw : angleLerp(cat.yaw, targetYaw, 1 - Math.pow(0.002, delta));
+    root.current.rotation.y = cat.yaw;
+
+    const ease = 1 - Math.pow(0.001, delta);
+    const stride = walking ? time * 9 : 0;
+    legs.forEach((leg, index) => {
+      if (!leg.current) return;
+      const swing = walking ? Math.sin(stride + (index % 2 === 0 ? 0 : Math.PI) + (index > 1 ? Math.PI : 0)) * 0.55 : 0;
+      leg.current.rotation.x = swing;
+      const target = sleeping ? 0.001 : 1;
+      leg.current.scale.y += (target - leg.current.scale.y) * ease;
+    });
+    if (body.current) {
+      const bob = walking ? Math.abs(Math.sin(stride)) * 0.012 : 0;
+      const breath = sleeping ? Math.sin(time * 1.6) * 0.012 : 0;
+      const targetY = sleeping ? 0.1 : sitting ? 0.19 : 0.2;
+      body.current.position.y += (targetY + bob - body.current.position.y) * ease;
+      body.current.rotation.x += ((sitting && !sleeping ? -0.35 : 0) - body.current.rotation.x) * ease;
+      const sx = sleeping ? 1.18 + breath : 1;
+      const sy = sleeping ? 0.78 + breath : 1;
+      const sz = sleeping ? 0.82 : 1;
+      body.current.scale.x += (sx - body.current.scale.x) * ease;
+      body.current.scale.y += (sy - body.current.scale.y) * ease;
+      body.current.scale.z += (sz - body.current.scale.z) * ease;
+    }
+    if (head.current) {
+      const target = sleeping ? [0.05, 0.15, 0.17] : sitting ? [0, 0.38, 0.16] : [0, 0.31, 0.21];
+      head.current.position.x += (target[0] - head.current.position.x) * ease;
+      head.current.position.y += (target[1] - head.current.position.y) * ease;
+      head.current.position.z += (target[2] - head.current.position.z) * ease;
+      const yaw = sleeping ? 0.7 : walking ? Math.sin(time * 1.3) * 0.12 : Math.sin(time * 0.8) * 0.3;
+      head.current.rotation.y += (yaw - head.current.rotation.y) * ease;
+      head.current.rotation.x += ((sleeping ? 0.25 : 0) - head.current.rotation.x) * ease;
+    }
+    if (tail.current) {
+      const curl = sleeping ? 1 : 0;
+      tail.current.rotation.y += ((sleeping ? 1.15 : Math.sin(time * (walking ? 3 : 1.4)) * 0.35) - tail.current.rotation.y) * ease;
+      tail.current.position.y += ((sleeping ? 0.08 : 0.24) - tail.current.position.y) * ease;
+      tailSegments.forEach((segment, index) => {
+        if (!segment.current) return;
+        const up = (index === 0 ? -0.9 : -0.25) * (1 - curl);
+        const flat = (index === 0 ? -1.45 : 0.05) * curl;
+        segment.current.rotation.x += (up + flat - segment.current.rotation.x) * ease;
+        segment.current.rotation.y += ((curl ? 0.55 : Math.sin(time * 2 + index) * 0.08) - segment.current.rotation.y) * ease;
+      });
+    }
+    if (eyesOpen.current) eyesOpen.current.visible = !sleeping;
+    if (eyesClosed.current) eyesClosed.current.visible = sleeping;
+    if (eyeMaterial.current) eyeMaterial.current.emissiveIntensity = nightRef.current.value * (1 - lightRef.current.value) * 2.2 + 0.15;
+    if (typeof window !== 'undefined' && window.__tourDebug) {
+      const world = root.current.getWorldPosition(new THREE.Vector3());
+      window.__tourDebug.cat = { mode: cat.mode, x: +position.x.toFixed(2), z: +position.z.toFixed(2), world: world.toArray().map((v) => +v.toFixed(2)) };
+    }
+    zs.forEach((z, index) => {
+      if (!z.current) return;
+      const phase = ((time * 0.45 + index / 3) % 1);
+      z.current.visible = sleeping && !reducedMotion;
+      z.current.position.set(0.12 + phase * 0.12, 0.32 + phase * 0.35, 0.1);
+      z.current.fillOpacity = Math.sin(phase * Math.PI);
+      z.current.scale.setScalar(0.6 + phase * 0.6);
+    });
+  });
+
+  const fur = '#5b5462';
+  const cream = '#f3e6d4';
+  const pink = '#f2a5b4';
+  return (
+    <group ref={root} position={reducedMotion ? CAT_SEAT : CAT_PATH[0]} scale={1.3}>
+      <Interactive label="Pet the cat" onSelect={onPet} labelOffset={[0, 0.62, 0]}>
+        {/* Invisible, generous hit area */}
+        <mesh position={[0, 0.24, 0]}>
+          <boxGeometry args={[0.36, 0.48, 0.62]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+        <group ref={body} position={[0, 0.2, 0]}>
+          <RoundedBox args={[0.2, 0.17, 0.38]} radius={0.075} smoothness={3} castShadow>
+            <meshStandardMaterial color={fur} roughness={0.85} />
+          </RoundedBox>
+          <RoundedBox args={[0.15, 0.06, 0.26]} radius={0.03} smoothness={2} position={[0, -0.06, 0.02]}>
+            <meshStandardMaterial color={cream} roughness={0.9} />
+          </RoundedBox>
+        </group>
+        <group ref={head} position={[0, 0.31, 0.21]}>
+          <RoundedBox args={[0.2, 0.17, 0.17]} radius={0.075} smoothness={3} castShadow>
+            <meshStandardMaterial color={fur} roughness={0.85} />
+          </RoundedBox>
+          {[-1, 1].map((side) => (
+            <group key={side} position={[side * 0.06, 0.09, -0.01]} rotation={[0, 0, -side * 0.28]}>
+              <mesh castShadow>
+                <coneGeometry args={[0.045, 0.085, 4]} />
+                <meshStandardMaterial color={fur} roughness={0.85} />
+              </mesh>
+              <mesh position={[0, -0.005, 0.018]} scale={[0.6, 0.65, 0.4]}>
+                <coneGeometry args={[0.045, 0.085, 4]} />
+                <meshStandardMaterial color={pink} roughness={0.8} />
+              </mesh>
+            </group>
+          ))}
+          <mesh position={[0, -0.035, 0.08]} scale={[1, 0.65, 0.6]}>
+            <sphereGeometry args={[0.055, 14, 10]} />
+            <meshStandardMaterial color={cream} roughness={0.9} />
+          </mesh>
+          <mesh position={[0, -0.012, 0.112]}>
+            <sphereGeometry args={[0.012, 8, 6]} />
+            <meshStandardMaterial color={pink} roughness={0.6} />
+          </mesh>
+          <group ref={eyesOpen}>
+            {[-1, 1].map((side) => (
+              <mesh key={side} position={[side * 0.048, 0.02, 0.083]}>
+                <sphereGeometry args={[0.019, 10, 8]} />
+                <meshStandardMaterial ref={side === 1 ? eyeMaterial : undefined} color="#2a2024" emissive="#ffd66e" emissiveIntensity={0.15} roughness={0.3} />
+              </mesh>
+            ))}
+          </group>
+          <group ref={eyesClosed} visible={false}>
+            {[-1, 1].map((side) => (
+              <Block key={side} args={[0.035, 0.007, 0.01]} color="#2a2024" position={[side * 0.048, 0.015, 0.088]} castShadow={false} receiveShadow={false} />
+            ))}
+          </group>
+        </group>
+        {[[-0.06, 0.13], [0.06, 0.13], [-0.06, -0.13], [0.06, -0.13]].map(([x, z], index) => (
+          <group key={index} ref={legs[index]} position={[x, 0.15, z]}>
+            <mesh position={[0, -0.075, 0]} castShadow>
+              <cylinderGeometry args={[0.028, 0.026, 0.15, 8]} />
+              <meshStandardMaterial color={fur} roughness={0.85} />
+            </mesh>
+            <mesh position={[0, -0.145, 0.008]} scale={[1, 0.6, 1.25]}>
+              <sphereGeometry args={[0.03, 10, 8]} />
+              <meshStandardMaterial color={cream} roughness={0.9} />
+            </mesh>
+          </group>
+        ))}
+        <group ref={tail} position={[0, 0.24, -0.18]}>
+          <group ref={tailSegments[0]}>
+            <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.022, 0.024, 0.09, 8]} />
+              <meshStandardMaterial color={fur} roughness={0.85} />
+            </mesh>
+            <group ref={tailSegments[1]} position={[0, 0, -0.085]}>
+              <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.02, 0.022, 0.09, 8]} />
+                <meshStandardMaterial color={fur} roughness={0.85} />
+              </mesh>
+              <group ref={tailSegments[2]} position={[0, 0, -0.085]}>
+                <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.019, 0.02, 0.09, 8]} />
+                  <meshStandardMaterial color={fur} roughness={0.85} />
+                </mesh>
+                <group ref={tailSegments[3]} position={[0, 0, -0.085]}>
+                  <mesh position={[0, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.017, 0.019, 0.08, 8]} />
+                    <meshStandardMaterial color={cream} roughness={0.9} />
+                  </mesh>
+                </group>
+              </group>
+            </group>
+          </group>
+        </group>
+        {zs.map((z, index) => (
+          <Text key={index} ref={z} font={FONT} fontSize={0.07} color="#7b6fd0" anchorX="center" anchorY="middle" visible={false}>
+            z
+          </Text>
+        ))}
+      </Interactive>
+      {bubble && (
+        <Html position={[0, 0.7, 0]} center zIndexRange={[26, 0]} wrapperClass="box-tour-html">
+          <span className="box-tour-cat-bubble" role="status">{bubble}</span>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Firefly (night only) with a fading light trail                       */
+/* ------------------------------------------------------------------ */
+
+function Firefly() {
+  const { nightRef, reducedMotion } = useRoom();
+  const body = useRef();
+  const glow = useRef();
+  const core = useRef();
+  const halo = useRef();
+  const zoom = useRef(0);
+  const trail = useRef();
+  const { scene } = useThree();
+  const anchor = useMemo(() => new THREE.Object3D(), []);
+  const anchorRef = useRef(anchor);
+  const [trailReady, setTrailReady] = useState(false);
+  const world = useMemo(() => new THREE.Vector3(), []);
+  const haloMap = useMemo(() => radialTexture([[0, 'rgba(240,255,170,1)'], [0.3, 'rgba(210,255,120,0.45)'], [1, 'rgba(190,255,100,0)']], 64), []);
+  useFrame(({ clock }, delta) => {
+    const time = reducedMotion ? 0 : clock.elapsedTime;
+    zoom.current = Math.max(0, zoom.current - delta);
+    const speed = 1 + zoom.current * 2.2;
+    const t = time * 0.55 * speed + (zoom.current > 0 ? zoom.current * 4 : 0);
+    if (body.current) {
+      body.current.position.set(
+        0.4 + Math.sin(t * 0.71) * 1.9 + Math.sin(t * 1.9) * 0.25,
+        1.65 + Math.sin(t * 0.93 + 1.2) * 0.65 + Math.sin(t * 2.7) * 0.08,
+        0.3 + Math.sin(t * 0.53 + 2.1) * 1.9 + Math.cos(t * 1.6) * 0.25,
+      );
+    }
+    if (body.current) {
+      body.current.getWorldPosition(world);
+      anchor.position.copy(world);
+      if (!trailReady && !reducedMotion) setTrailReady(true);
+    }
+    const night = nightRef.current.value;
+    const blink = 0.65 + 0.35 * Math.sin(time * 3.1) * Math.sin(time * 1.3 + 0.5);
+    const strength = Math.max(0, night * 1.4 - 0.4) * (blink + zoom.current);
+    if (glow.current) glow.current.intensity = strength * 0.9;
+    if (core.current) core.current.opacity = Math.min(1, strength * 1.3);
+    if (halo.current) halo.current.opacity = Math.min(1, strength);
+    const material = trail.current?.material;
+    if (material) {
+      if (!material.transparent) {
+        material.transparent = true;
+        material.depthWrite = false;
+        material.blending = THREE.AdditiveBlending;
+        material.needsUpdate = true;
+      }
+      material.opacity = Math.min(1, strength * 0.8);
+    }
+  });
+  return (
+    <>
+      {createPortal(<primitive object={anchor} />, scene)}
+      {trailReady && (
+        <Trail ref={trail} target={anchorRef} width={0.9} length={7} color="#e9ff8a" attenuation={(width) => width * width} decay={1.2} />
+      )}
+    <group ref={body}>
+      <Interactive label="Catch the firefly" onSelect={() => { zoom.current = 1.4; }} labelOffset={[0, 0.25, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.028, 10, 8]} />
+          <meshBasicMaterial ref={core} color="#f4ffb0" transparent toneMapped={false} />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[0.2, 8, 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+      </Interactive>
+      <sprite scale={[0.42, 0.42, 1]}>
+        <spriteMaterial ref={halo} map={haloMap} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </sprite>
+      <pointLight ref={glow} intensity={0.8} distance={1.6} decay={2} color="#d8ff7a" />
+    </group>
+    </>
+  );
+}
+
+function RoomScene(props) {
+  const sky = useMemo(() => (
+    <>
+      <ThemeDriver />
+      <SceneLighting />
+      <Backdrop />
+      <SkyWheel />
+    </>
+  ), []);
+  return (
+    <Canvas
+      className="box-tour-canvas"
+      camera={{ position: [0, 3, 18], fov: FOV, near: 0.1, far: 120 }}
+      dpr={[1, 1.25]}
+      shadows={{ type: THREE.PCFShadowMap }}
+      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+    >
+      <color attach="background" args={['#f9a54f']} />
       <RoomContext.Provider value={props.room}>
+        {sky}
         <BoxRoom {...props} />
       </RoomContext.Provider>
       <CameraTour progressRef={props.progressRef} reducedMotion={props.reducedMotion} />
@@ -1162,11 +2027,11 @@ function RoomScene(props) {
 /* HTML layer: welcome, contextual cards, step navigation               */
 /* ------------------------------------------------------------------ */
 
+// Cards only fade and drift a few pixels; they never scale, so nothing else on screen appears to resize.
 const cardMotion = {
-  initial: { opacity: 0, y: 16, scale: 0.97 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.16 } },
-  transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, y: 8, transition: { duration: 0.18, ease: 'easeIn' } },
 };
 
 function ContextCard({ side, tag, tagColor, children, labelledBy }) {
@@ -1191,14 +2056,43 @@ export default function ScrollRoomPortfolio() {
   const reducedMotion = useReducedMotion() ?? false;
   const project = projects[projectIndex];
 
-  const [lampOn, setLampOn] = useState(true);
+  const [theme, setTheme] = useState('day');
+  const [lightOn, setLightOn] = useState(true);
+  const nightRef = useRef({ raw: 0, value: 0, target: 0 });
+  const lightRef = useRef({ raw: 1, value: 1, target: 1 });
   const [rgbMode, setRgbMode] = useState('wave');
-  const toggleLamp = useCallback(() => setLampOn((value) => !value), []);
+  const toggleTheme = useCallback(() => setTheme((value) => (value === 'day' ? 'night' : 'day')), []);
+  const toggleLight = useCallback(() => setLightOn((value) => !value), []);
+
+  // Restore the visitor's last sky choice without animating it in.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('box-tour-theme') === 'night') {
+        nightRef.current = { raw: 1, value: 1, target: 1 };
+        setTheme('night');
+      }
+    } catch { /* storage unavailable */ }
+  }, []);
+  useEffect(() => {
+    nightRef.current.target = theme === 'night' ? 1 : 0;
+    document.documentElement.dataset.theme = theme;
+    try { window.localStorage.setItem('box-tour-theme', theme); } catch { /* storage unavailable */ }
+  }, [theme]);
+  useEffect(() => () => { delete document.documentElement.dataset.theme; }, []);
+  useEffect(() => {
+    lightRef.current.target = lightOn ? 1 : 0;
+    document.documentElement.dataset.roomLight = lightOn ? 'on' : 'off';
+  }, [lightOn]);
   const cycleRgb = useCallback(() => setRgbMode((value) => RGB_MODES[(RGB_MODES.indexOf(value) + 1) % RGB_MODES.length]), []);
   const goTo = useCallback((id) => {
     const section = SECTIONS.find((item) => item.id === id);
     if (section) scrollToProgress(section.focus, reducedMotion);
   }, [reducedMotion]);
+
+  const room = useMemo(
+    () => ({ goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight, nightRef, lightRef }),
+    [goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight],
+  );
 
   const previousProject = useCallback(() => setProjectIndex((value) => (value - 1 + projects.length) % projects.length), []);
   const nextProject = useCallback(() => setProjectIndex((value) => (value + 1) % projects.length), []);
@@ -1264,12 +2158,20 @@ export default function ScrollRoomPortfolio() {
           controlsVisible={phase === 'computer'}
           onPrevious={previousProject}
           onNext={nextProject}
-          room={{ phase, goTo, lampOn, toggleLamp, rgbMode, cycleRgb, reducedMotion }}
+          room={room}
         />
       </div>
 
       <nav className="box-tour-nav" aria-label="Room tour">
         <Link href="/projects" className="box-tour-archive" aria-label="All projects"><span>All projects</span> <ArrowUpRight size={14} weight="bold" /></Link>
+        <div className="box-tour-quick" role="group" aria-label="Room settings">
+          <button type="button" onClick={toggleTheme} aria-pressed={theme === 'night'} aria-label={theme === 'day' ? 'Switch to night mode' : 'Switch to day mode'} title={theme === 'day' ? 'Night mode' : 'Day mode'}>
+            {theme === 'day' ? <Moon size={20} weight="fill" /> : <Sun size={20} weight="fill" />}
+          </button>
+          <button type="button" onClick={toggleLight} aria-pressed={!lightOn} aria-label={lightOn ? 'Turn the room light off' : 'Turn the room light on'} title={lightOn ? 'Light off' : 'Light on'} className={lightOn ? 'is-on' : ''}>
+            <Lightbulb size={20} weight={lightOn ? 'fill' : 'regular'} />
+          </button>
+        </div>
         <ol>
           {SECTIONS.filter((section) => !section.hidden).map((section) => (
             <li key={section.id}>
@@ -1287,10 +2189,11 @@ export default function ScrollRoomPortfolio() {
         </ol>
       </nav>
 
+
       <AnimatePresence mode="wait" initial={false}>
         {phase === 'overview' && (
           <motion.p key="tip" className="box-tour-tip" role="status" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.3 }}>
-            Tip: hover or tap things in the room. Try the lamp, the PC, the record and the plant.
+            Tip: hover or tap things in the room. Try the sun, the wall lamp, the PC, the record, and the cat.
           </motion.p>
         )}
         {phase === 'display' && (
@@ -1318,6 +2221,10 @@ export default function ScrollRoomPortfolio() {
               <span>{projectIndex + 1} / {projects.length}</span>
               <span>{project.type}</span>
             </div>
+            <div className="box-tour-card-arrows">
+              <button type="button" onClick={previousProject} aria-label="Previous project"><ArrowLeft size={18} weight="bold" /></button>
+              <button type="button" onClick={nextProject} aria-label="Next project"><ArrowRight size={18} weight="bold" /></button>
+            </div>
             <h2 id="card-project">{project.title}</h2>
             <p>{project.description}</p>
             <ul className="box-tour-chips box-tour-tags" aria-label="Built with" style={{ '--tag-accent': project.color }}>
@@ -1332,9 +2239,8 @@ export default function ScrollRoomPortfolio() {
               <button type="button" onClick={cycleRgb} aria-label={`PC lighting: ${rgbMode}. Change lighting`}>
                 <span className={`box-tour-rgb-dot is-${rgbMode}`} aria-hidden="true" /> PC lighting: {RGB_LABELS[rgbMode]}
               </button>
-              <button type="button" onClick={toggleLamp} aria-pressed={lampOn}>Desk lamp: {lampOn ? 'On' : 'Off'}</button>
             </div>
-            <p className="box-tour-hint">Use the arrows beside the monitor, your ← → keys, or click the screen. University and team projects are in the <Link href="/projects">project archive</Link>.</p>
+            <p className="box-tour-hint">Use the arrows beside the monitor, your left and right arrow keys, or click the screen. University and team projects are in the <Link href="/projects">project archive</Link>.</p>
           </ContextCard>
         )}
         {phase === 'notes' && (
