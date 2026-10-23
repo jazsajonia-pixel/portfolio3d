@@ -29,7 +29,7 @@ html, body { background: #080d1c; color: #edf4ff; }
 ::selection { background: #155e75; color: #f8fbff; }
 
 /* Box-opening room tour (home page). Warm paper UI over the miniature room. */
-.box-tour-page { --tour-ink: #2f2219; --tour-muted: #6b5443; --tour-paper: #fffaf2; --tour-accent: #e2703a; --tour-soft: #f6ead9; --tour-glass: rgba(255, 250, 242, .82); position: relative; min-height: 1000svh; overflow-x: clip; background: #f9a54f; color: var(--tour-ink); color-scheme: light; }
+.box-tour-page { --tour-ink: #2f2219; --tour-muted: #6b5443; --tour-paper: #fffaf2; --tour-accent: #e2703a; --tour-soft: #f6ead9; --tour-glass: rgba(255, 250, 242, .82); position: relative; height: 100svh; overflow: hidden; background: #f9a54f; color: var(--tour-ink); color-scheme: light; }
 .box-tour-stage { position: fixed; z-index: 0; inset: 0; touch-action: pan-y; }
 .box-tour-canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
 .box-tour-html { pointer-events: none; }
@@ -185,4 +185,53 @@ html[data-theme='night'] .box-tour-room-controls button { border-color: rgba(243
   .box-tour-card-arrows button { display: grid; width: 44px; height: 44px; place-items: center; border: 1.5px solid rgba(47, 34, 25, .2); border-radius: 50%; background: var(--tour-paper); color: var(--tour-ink); cursor: pointer; }
   .box-tour-card-arrows button:focus-visible { outline: 3px solid var(--tour-ink); outline-offset: 2px; }
   html[data-theme='night'] .box-tour-card-arrows button { border-color: rgba(243, 236, 223, .3); }
+}
+
+/* Step-based tour: the page does not scroll; wheel, swipe and keys move one stop at a time. */
+html.box-tour-locked, html.box-tour-locked body { height: 100%; overflow: hidden; overscroll-behavior: none; scroll-behavior: auto; }
+html.box-tour-locked .box-tour-stage { touch-action: none; }
+.box-tour-card { overscroll-behavior: contain; touch-action: pan-y; top: calc(max(14px, env(safe-area-inset-top)) + 64px); bottom: 104px; max-height: none; height: max-content; max-height: calc(100svh - 168px); scrollbar-width: thin; }
+
+/* Labels for the step dots (shown on hover / keyboard focus) */
+.box-tour-nav li { position: relative; }
+.box-tour-nav button[data-label]::after { content: attr(data-label); position: absolute; top: calc(100% + 6px); left: 50%; padding: 5px 9px; border-radius: 6px; background: rgba(47, 34, 25, .9); color: #fffaf2; font: 600 11px 'Space Grotesk', sans-serif; white-space: nowrap; opacity: 0; pointer-events: none; transform: translate(-50%, -4px); transition: opacity .2s ease, transform .2s ease; }
+.box-tour-nav button[data-label]:hover::after, .box-tour-nav button[data-label]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+
+/* Tour progress bar */
+.box-tour-progress { position: fixed; z-index: 25; right: 0; bottom: max(20px, env(safe-area-inset-bottom)); left: 0; display: flex; align-items: center; gap: 6px; width: min(460px, calc(100% - 24px)); margin: 0 auto; border-radius: 999px; background: var(--tour-glass); padding: 6px; color: var(--tour-ink); box-shadow: 0 10px 28px rgba(122, 67, 25, .2); backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transform: translateY(12px); transition: opacity .4s ease, transform .4s cubic-bezier(.22, 1, .36, 1), background-color .9s ease; }
+.box-tour-progress.is-visible { opacity: 1; pointer-events: auto; transform: none; }
+.box-tour-progress-body { display: grid; flex: 1; min-width: 0; gap: 7px; padding: 0 6px; }
+.box-tour-progress-top { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.box-tour-progress-count { flex: none; color: var(--tour-accent); font: 500 11px 'DM Mono', monospace; letter-spacing: .06em; }
+.box-tour-progress-label { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; color: var(--tour-muted); }
+.box-tour-progress-label strong { color: var(--tour-ink); font-weight: 700; }
+.box-tour-segments { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.box-tour-segments li { position: relative; height: 4px; overflow: hidden; border-radius: 99px; background: rgba(47, 34, 25, .14); transition: background-color .3s ease; }
+.box-tour-segments li.is-done { background: rgba(226, 112, 58, .45); }
+.box-tour-segments li.is-current { background: var(--tour-accent); }
+.box-tour-segments.is-travelling li.is-current { background: rgba(47, 34, 25, .14); }
+.box-tour-segment-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--tour-accent); transform: scaleX(0); transform-origin: left; animation: box-tour-fill linear forwards; }
+@keyframes box-tour-fill { to { transform: scaleX(1); } }
+.box-tour-step-btn { display: grid; flex: none; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--tour-ink); cursor: pointer; transition: background-color .2s ease, opacity .2s ease; }
+.box-tour-step-btn.is-next { background: var(--tour-ink); color: var(--tour-paper); }
+.box-tour-step-btn:hover:not(:disabled) { background: var(--tour-soft); }
+.box-tour-step-btn.is-next:hover:not(:disabled) { background: var(--tour-accent); color: #fff; }
+.box-tour-step-btn:disabled { opacity: .3; cursor: default; }
+.box-tour-step-btn:focus-visible { outline: 3px solid var(--tour-ink); outline-offset: 2px; }
+.box-tour-step-btn.is-nudge svg { animation: box-tour-bounce 1.6s ease-in-out infinite; }
+html[data-theme='night'] .box-tour-progress { box-shadow: 0 10px 28px rgba(0, 0, 0, .4); }
+html[data-theme='night'] .box-tour-segments li, html[data-theme='night'] .box-tour-segments.is-travelling li.is-current { background: rgba(243, 236, 223, .18); }
+html[data-theme='night'] .box-tour-segments li.is-current { background: var(--tour-accent); }
+html[data-theme='night'] .box-tour-segments li.is-done { background: rgba(255, 163, 107, .5); }
+.box-tour-tip { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 72px); }
+
+@media (max-aspect-ratio: 19/20) {
+  .box-tour-card { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 66px); max-height: 38svh; }
+  .box-tour-progress { bottom: max(10px, env(safe-area-inset-bottom)); padding: 4px; }
+  .box-tour-progress-label { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .box-tour-progress, .box-tour-segments li { transition: none; }
+  .box-tour-step-btn.is-nudge svg { animation: none; }
+  .box-tour-segment-fill { animation: none; transform: scaleX(1); }
 }

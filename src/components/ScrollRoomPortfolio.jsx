@@ -5,7 +5,7 @@ import { Html, Instance, Instances, RoundedBox, Text, Trail } from '@react-three
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Envelope, GithubLogo, Lightbulb, LinkedinLogo, MapPin, Moon, Phone, Sun } from 'phosphor-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Envelope, GithubLogo, Lightbulb, LinkedinLogo, MapPin, Moon, Phone, Sun } from 'phosphor-react';
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ */
@@ -53,22 +53,36 @@ const FONT_MEDIUM = '/fonts/space-grotesk-500.woff';
 /* ------------------------------------------------------------------ */
 
 const TIMELINE = {
-  welcomeEnd: 0.035,
   growStart: 0.03, growEnd: 0.16,
   turnStart: 0.03, turnEnd: 0.18,
   openStart: 0.17, openEnd: 0.27,
   panelFadeStart: 0.25, panelFadeEnd: 0.31,
 };
 
-// Hold windows where a context card is shown. `focus` is the scroll point used by the step navigation.
-const SECTIONS = [
-  { id: 'intro', label: 'Welcome', start: 0, end: TIMELINE.welcomeEnd, focus: 0 },
-  { id: 'overview', label: 'The room', start: 0.3, end: 0.4, focus: 0.35, hidden: true },
-  { id: 'display', label: 'About and tools', start: 0.46, end: 0.535, focus: 0.4975 },
-  { id: 'computer', label: 'Projects', start: 0.64, end: 0.71, focus: 0.675 },
-  { id: 'notes', label: 'How I build', start: 0.815, end: 0.87, focus: 0.8425 },
-  { id: 'contact', label: 'Contact', start: 0.965, end: 1.01, focus: 1 },
+// The tour is a sequence of stops. One scroll gesture, swipe or key press moves exactly one stop, so a card can
+// never be skipped by scrolling too far. `hold` is the progress range where the camera is at rest for that stop;
+// travelling between stops animates progress from the end of one hold to the start of the next.
+const STEPS = [
+  { id: 'intro', label: 'Welcome', hold: [0, 0], focus: 0 },
+  { id: 'overview', label: 'The room', hold: [0.32, 0.37], focus: 0.345 },
+  { id: 'display', label: 'About and tools', hold: [0.445, 0.55], focus: 0.4975 },
+  { id: 'computer', label: 'Projects', hold: [0.625, 0.725], focus: 0.675 },
+  { id: 'notes', label: 'How I build', hold: [0.8, 0.885], focus: 0.8425 },
+  { id: 'contact', label: 'Contact', hold: [0.955, 1], focus: 1 },
 ];
+const LAST_STEP = STEPS.length - 1;
+// Seconds to travel from step i to step i + 1 (the first leg opens the box, so it gets more time).
+const LEG_DURATION = [2.6, 1.5, 1.5, 1.5, 1.5];
+
+// Fractional step position → scroll-timeline progress used by the box and camera.
+function progressAt(value) {
+  const position = Math.max(0, Math.min(LAST_STEP, value));
+  const index = Math.floor(position);
+  const t = position - index;
+  if (index >= LAST_STEP) return STEPS[LAST_STEP].focus;
+  if (t < 0.0001) return STEPS[index].focus;
+  return STEPS[index].hold[1] + (STEPS[index + 1].hold[0] - STEPS[index].hold[1]) * t;
+}
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const range = (value, start, end) => clamp01((value - start) / (end - start));
@@ -156,8 +170,8 @@ function frameStop(stop, width, height) {
   let shiftY = stop.lift;
   if (stop.card !== 'none') {
     if (portrait) {
-      freeH = 0.56;
-      shiftY = 0.22;
+      freeH = 0.52;
+      shiftY = 0.24;
     } else {
       freeW = 0.6;
       shiftX = stop.card === 'left' ? 0.2 : -0.2;
@@ -899,6 +913,156 @@ function NotesTable() {
 /* The box: shell, opening panels and room contents                     */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Closed-box dressing: a timber-framed miniature crate wrapped as a gift */
+/* ------------------------------------------------------------------ */
+
+const RIBBON = '#fff4e2';
+const RIBBON_SHADE = '#f3dcc0';
+
+// Timber frame around one face of a panel. `w`/`h` are the face size; the frame sits on the panel's outer face.
+function PanelFrame({ w, h, depth = 0.05, bar = 0.17, color = palette.timber }) {
+  return (
+    <group>
+      <Block args={[w, bar, depth]} color={color} position={[0, h - bar / 2, 0]} castShadow={false} />
+      <Block args={[w, bar, depth]} color={color} position={[0, bar / 2, 0]} castShadow={false} />
+      <Block args={[bar, h - 2 * bar, depth]} color={color} position={[-w / 2 + bar / 2, h / 2, 0]} castShadow={false} />
+      <Block args={[bar, h - 2 * bar, depth]} color={color} position={[w / 2 - bar / 2, h / 2, 0]} castShadow={false} />
+    </group>
+  );
+}
+
+// Front panel: name plaque, latch and the corner post that completes the box outline.
+function FrontPanelDressing({ width, height }) {
+  const face = T / 2 + 0.025;
+  return (
+    <group>
+      <group position={[0, 0, face]}>
+        <PanelFrame w={width} h={height} />
+        {/* Subtle plank seams so the panel reads as a timber crate wall */}
+        {[0.25, 0.5, 0.75].map((f) => (
+          <Block key={f} args={[width - 0.34, 0.025, 0.01]} color={palette.plasterShade} position={[0, height * f, -0.02]} castShadow={false} receiveShadow={false} />
+        ))}
+        {/* Name plaque */}
+        <RoundedBox args={[2.9, 1.28, 0.08]} radius={0.06} position={[0, height * 0.56, 0.03]} castShadow>
+          <meshStandardMaterial color={palette.timberDark} roughness={0.7} transparent />
+        </RoundedBox>
+        <RoundedBox args={[2.72, 1.1, 0.06]} radius={0.05} position={[0, height * 0.56, 0.07]}>
+          <meshStandardMaterial color="#fffaf2" roughness={0.85} transparent />
+        </RoundedBox>
+        <Text font={FONT} position={[0, height * 0.56 + 0.15, 0.105]} fontSize={0.46} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.04}>
+          JAZZ
+        </Text>
+        <Text font={FONT_MEDIUM} position={[0, height * 0.56 - 0.3, 0.105]} fontSize={0.12} color="#b8612f" anchorX="center" anchorY="middle" letterSpacing={0.28}>
+          PORTFOLIO · OPEN ME
+        </Text>
+        {/* Brass latch below the plaque */}
+        <RoundedBox args={[0.34, 0.2, 0.05]} radius={0.03} position={[0, height * 0.24, 0.03]} castShadow>
+          <meshStandardMaterial color="#d6a65a" roughness={0.35} metalness={0.5} transparent />
+        </RoundedBox>
+        <mesh position={[0, height * 0.24, 0.065]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.035, 0.035, 0.03, 14]} />
+          <meshStandardMaterial color="#8a5a24" roughness={0.4} metalness={0.4} transparent />
+        </mesh>
+      </group>
+      {/* Front-right corner post (the other three are permanent walls of the room) */}
+      <Block args={[0.24, height - 0.2, 0.24]} color={palette.timberDark} position={[width / 2 - 0.12, (height - 0.2) / 2, 0]} />
+    </group>
+  );
+}
+
+// Side panel: frame and a round porthole glowing with the light of the room inside.
+function SidePanelDressing({ depth, height }) {
+  const { lightRef, nightRef } = useRoom();
+  const glow = useRef();
+  useFrame(() => {
+    if (glow.current) glow.current.emissiveIntensity = 0.25 + lightRef.current.value * (0.55 + nightRef.current.value * 0.5);
+  });
+  return (
+    <group position={[T / 2 + 0.025, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+      <PanelFrame w={depth} h={height} />
+      {[0.25, 0.5, 0.75].map((f) => (
+        <Block key={f} args={[depth - 0.34, 0.025, 0.01]} color={palette.plaster} position={[0, height * f, -0.02]} castShadow={false} receiveShadow={false} />
+      ))}
+      <group position={[0, height * 0.58, 0.02]}>
+        <mesh>
+          <torusGeometry args={[0.62, 0.09, 12, 40]} />
+          <meshStandardMaterial color={palette.timberDark} roughness={0.7} transparent />
+        </mesh>
+        <mesh position={[0, 0, -0.01]}>
+          <circleGeometry args={[0.6, 40]} />
+          <meshStandardMaterial ref={glow} color="#ffe3b3" emissive="#ffc27a" emissiveIntensity={0.8} roughness={0.4} transparent />
+        </mesh>
+        <Block args={[1.2, 0.05, 0.03]} color={palette.timberDark} castShadow={false} />
+        <Block args={[0.05, 1.2, 0.03]} color={palette.timberDark} castShadow={false} />
+      </group>
+    </group>
+  );
+}
+
+// Lid: overhanging rim, ribbon cross and a bow. `size` is the lid's square size; `top` is its top face height.
+function LidDressing({ size, top, center }) {
+  const ribbonW = 0.5;
+  return (
+    <group position={[0, 0, center]}>
+      {/* Darker rim under the lid edge gives it a proper overhang */}
+      <Block args={[size + 0.16, 0.08, size + 0.12]} color={palette.timberDark} position={[0, 0.04, 0]} castShadow={false} />
+      {/* Ribbon cross over the top and down the lid edges */}
+      <Block args={[ribbonW, 0.03, size + 0.06]} color={RIBBON} position={[0, top + 0.015, 0]} castShadow={false} />
+      <Block args={[size + 0.1, 0.03, ribbonW]} color={RIBBON} position={[0, top + 0.016, 0]} castShadow={false} />
+      <Block args={[ribbonW, top + 0.03, 0.03]} color={RIBBON_SHADE} position={[0, (top + 0.03) / 2, (size + 0.06) / 2]} castShadow={false} />
+      <Block args={[0.03, top + 0.03, ribbonW]} color={RIBBON_SHADE} position={[(size + 0.1) / 2, (top + 0.03) / 2, 0]} castShadow={false} />
+      {/* Bow */}
+      <group position={[0, top + 0.12, 0]}>
+        {[-1, 1].map((side) => (
+          <mesh key={side} position={[side * 0.42, 0.12, 0]} rotation={[Math.PI / 2, side * 0.35, 0]} scale={[1, 0.62, 1]} castShadow>
+            <torusGeometry args={[0.36, 0.11, 12, 28]} />
+            <meshStandardMaterial color={RIBBON} roughness={0.55} transparent />
+          </mesh>
+        ))}
+        {[-1, 1].map((side) => (
+          <mesh key={`tail-${side}`} position={[side * 0.32, -0.07, 0.38]} rotation={[0, side * 0.5, 0]} castShadow>
+            <boxGeometry args={[0.24, 0.025, 0.7]} />
+            <meshStandardMaterial color={RIBBON_SHADE} roughness={0.6} transparent />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.06, 0]} castShadow>
+          <sphereGeometry args={[0.17, 18, 14]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.5} transparent />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// Outside of the permanent left wall: a real window with shutters and a flower box, so the closed box reads
+// as a little house and the sunlight hitting this wall has a reason to be there.
+function OutsideWindow() {
+  return (
+    <group position={[-S - T - 0.005, 2.05, 1.95]} rotation={[0, -Math.PI / 2, 0]}>
+      <Block args={[1.36, 1.3, 0.06]} color={palette.timber} />
+      <mesh position={[0, 0, 0.035]}>
+        <planeGeometry args={[1.12, 1.07]} />
+        <meshStandardMaterial color="#ffe3b3" emissive="#ffc27a" emissiveIntensity={0.55} roughness={0.35} />
+      </mesh>
+      <Block args={[0.05, 1.07, 0.03]} color={palette.timber} position={[0, 0, 0.05]} castShadow={false} />
+      <Block args={[1.12, 0.05, 0.03]} color={palette.timber} position={[0, 0, 0.05]} castShadow={false} />
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 0.95, 0, 0.03]}>
+          <Block args={[0.48, 1.3, 0.05]} color="#e98f45" castShadow={false} />
+          {[-0.4, -0.2, 0, 0.2, 0.4].map((y) => (
+            <Block key={y} args={[0.38, 0.03, 0.02]} color="#c9733a" position={[0, y, 0.03]} castShadow={false} />
+          ))}
+        </group>
+      ))}
+      <Block args={[1.5, 0.26, 0.3]} color={palette.timberDark} position={[0, -0.78, 0.15]} />
+      <Plant position={[-0.4, -0.66, 0.15]} scale={0.42} pot={palette.timberDark} />
+      <Plant position={[0.05, -0.66, 0.15]} scale={0.5} pot={palette.timberDark} />
+      <Plant position={[0.45, -0.66, 0.15]} scale={0.4} pot={palette.timberDark} />
+    </group>
+  );
+}
+
 function FadingPanel({ materialRef, color, args }) {
   return (
     <mesh castShadow receiveShadow position={[0, args[1] / 2, 0]}>
@@ -942,6 +1106,7 @@ function RoomFill() {
 
 function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVisible, onPrevious, onNext }) {
   const { theme } = useRoom();
+  const { size } = useThree();
   // Stable elements: changing the visible card re-renders only the workstation, not the whole room.
   const staticRoom = useMemo(() => (
     <>
@@ -963,6 +1128,7 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
   const lidMaterial = useRef();
   const introStart = useRef(null);
   const appear = useRef(0);
+  const lastOpacity = useRef(-1);
 
   useFrame(({ clock }) => {
     const p = progressRef.current.smooth;
@@ -976,7 +1142,9 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
     const introT = p > 0.004 ? 1 : range(sinceStart, INTRO_BOX_DELAY, INTRO_BOX_DELAY + 0.7);
     appear.current = Math.max(appear.current, reducedMotion ? (introT > 0 ? 1 : 0) : introT);
     const pop = appear.current >= 1 ? 1 : easeOutBack(appear.current);
-    const scale = THREE.MathUtils.lerp(0.26, 1, grow) * Math.max(pop, 0.0001);
+    // The closed box starts larger on tall phone screens, where the full-room framing is much wider than the box.
+    const startScale = size.width / size.height < 0.95 ? 0.52 : 0.36;
+    const scale = THREE.MathUtils.lerp(startScale, 1, grow) * Math.max(pop, 0.0001);
     const idle = reducedMotion ? 0 : (1 - grow) * Math.sin(clock.elapsedTime * 1.6) * 0.18;
     const idleSpin = reducedMotion ? 0 : (1 - turn) * Math.sin(clock.elapsedTime * 0.7) * 0.12;
     if (outer.current) {
@@ -990,9 +1158,16 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
     if (front.current) front.current.rotation.x = open * (Math.PI / 2);
     if (side.current) side.current.rotation.z = -open * (Math.PI / 2);
     const opacity = 1 - fade;
-    [frontMaterial, sideMaterial, lidMaterial].forEach((material) => {
-      if (material.current) material.current.opacity = opacity;
-    });
+    // Fade the panels together with everything mounted on them (frame, plaque, ribbon, bow).
+    if (opacity !== lastOpacity.current) {
+      lastOpacity.current = opacity;
+      [front, side, lid].forEach((group) => group.current?.traverse((child) => {
+        if (!child.material) return;
+        child.material.transparent = true;
+        child.material.opacity = opacity;
+        child.material.depthWrite = opacity > 0.98;
+      }));
+    }
     const hidden = fade >= 1;
     if (front.current) front.current.visible = !hidden;
     if (side.current) side.current.visible = !hidden;
@@ -1027,17 +1202,21 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
         {/* Opening panels */}
         <group ref={front} position={[0, 0, S + T / 2]}>
           <FadingPanel materialRef={frontMaterial} color={palette.plaster} args={[outerSize, H + 0.2, T]} />
+          <FrontPanelDressing width={outerSize} height={H + 0.2} />
         </group>
         <group ref={side} position={[S + T / 2, 0, -T / 2]}>
           <FadingPanel materialRef={sideMaterial} color={palette.plasterShade} args={[T, H + 0.2, 2 * S + T]} />
+          <SidePanelDressing depth={2 * S + T} height={H + 0.2} />
         </group>
         <group ref={lid} position={[0, H + 0.2, -S - T]}>
           <mesh castShadow position={[0, 0.07, outerSize / 2]}>
             <boxGeometry args={[outerSize + 0.08, 0.14, outerSize + 0.04]} />
             <meshStandardMaterial ref={lidMaterial} color={palette.lid} roughness={0.75} transparent />
           </mesh>
+          <LidDressing size={outerSize} top={0.14} center={outerSize / 2} />
         </group>
 
+        <OutsideWindow />
         {staticRoom}
         <Workstation project={project} projectIndex={projectIndex} controlsVisible={controlsVisible} onPrevious={onPrevious} onNext={onNext} />
         {theme === 'night' && firefly}
@@ -2044,9 +2223,61 @@ function ContextCard({ side, tag, tagColor, children, labelledBy }) {
   );
 }
 
-export function scrollToProgress(value, reducedMotion) {
-  const max = document.documentElement.scrollHeight - window.innerHeight;
-  window.scrollTo({ top: Math.round(max * value), behavior: reducedMotion ? 'auto' : 'smooth' });
+// Is the event inside the open info card, and can that card still scroll in this direction?
+function cardCanScroll(target, direction) {
+  const card = target instanceof Element ? target.closest('.box-tour-card') : null;
+  if (!card || card.scrollHeight <= card.clientHeight + 1) return false;
+  if (direction > 0) return card.scrollTop + card.clientHeight < card.scrollHeight - 1;
+  return card.scrollTop > 0;
+}
+
+function isTypingTarget(target) {
+  return target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable);
+}
+
+// Always-visible tour status: where you are, what comes next, and how to get there.
+function TourProgress({ step, travel, onStep }) {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse)');
+    const update = () => setCoarse(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  // The welcome text has its own prompt, so the bar appears once the tour starts.
+  const visible = step > 0 || Boolean(travel);
+  const next = STEPS[step + 1];
+  const verb = coarse ? 'Swipe up' : 'Scroll';
+  let message;
+  if (travel) message = <>Heading to <strong>{STEPS[travel.to].label}</strong></>;
+  else if (next) message = <>{verb} for <strong>{next.label}</strong></>;
+  else message = <>End of the tour. <strong>{coarse ? 'Swipe down' : 'Scroll up'}</strong> to go back</>;
+  return (
+    <div className={`box-tour-progress${visible ? ' is-visible' : ''}`} role="group" aria-label="Tour progress" aria-hidden={!visible}>
+      <button type="button" className="box-tour-step-btn" onClick={() => onStep(-1)} disabled={step === 0} aria-label="Previous stop" tabIndex={visible ? 0 : -1}>
+        <ArrowUp size={18} weight="bold" />
+      </button>
+      <div className="box-tour-progress-body">
+        <div className="box-tour-progress-top">
+          <span className="box-tour-progress-count">{String(step + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}</span>
+          <span className="box-tour-progress-label" aria-live="polite">{message}</span>
+        </div>
+        <ol className={`box-tour-segments${travel ? ' is-travelling' : ''}`} aria-hidden="true">
+          {STEPS.map((item, index) => (
+            <li key={item.id} className={index < step ? 'is-done' : index === step ? 'is-current' : ''}>
+              {travel && index === travel.to && (
+                <span key={travel.id} className="box-tour-segment-fill" style={{ animationDuration: `${Math.max(travel.duration, 0.01)}s` }} />
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <button type="button" className={`box-tour-step-btn is-next${!travel && next ? ' is-nudge' : ''}`} onClick={() => onStep(1)} disabled={step === LAST_STEP} aria-label={next ? `Next stop: ${next.label}` : 'Last stop'} tabIndex={visible ? 0 : -1}>
+        <ArrowDown size={18} weight="bold" />
+      </button>
+    </div>
+  );
 }
 
 export default function ScrollRoomPortfolio() {
@@ -2084,10 +2315,35 @@ export default function ScrollRoomPortfolio() {
     document.documentElement.dataset.roomLight = lightOn ? 'on' : 'off';
   }, [lightOn]);
   const cycleRgb = useCallback(() => setRgbMode((value) => RGB_MODES[(RGB_MODES.indexOf(value) + 1) % RGB_MODES.length]), []);
-  const goTo = useCallback((id) => {
-    const section = SECTIONS.find((item) => item.id === id);
-    if (section) scrollToProgress(section.focus, reducedMotion);
+  // Step navigation: `step` is where the tour is (or is heading); `travel` describes an active transition.
+  const [step, setStep] = useState(0);
+  const [travel, setTravel] = useState(null);
+  const tourRef = useRef({ position: 0, from: 0, to: 0, start: 0, duration: 0, moving: false });
+  const goToStep = useCallback((index) => {
+    const tour = tourRef.current;
+    const target = Math.max(0, Math.min(LAST_STEP, index));
+    if (target === tour.to && (tour.moving || tour.position === target)) return;
+    const from = tour.position;
+    const low = Math.min(from, target);
+    const high = Math.max(from, target);
+    let duration = 0;
+    for (let leg = Math.floor(low); leg < Math.ceil(high); leg += 1) {
+      const covered = Math.min(high, leg + 1) - Math.max(low, leg);
+      // Jumps across several stops travel faster per stop so the dots never feel sluggish.
+      duration += covered * LEG_DURATION[leg] * (high - low > 1.01 ? 0.6 : 1);
+    }
+    duration = reducedMotion ? 0 : Math.min(duration, 3.4);
+    Object.assign(tour, { from, to: target, start: performance.now(), duration, moving: true });
+    setStep(target);
+    setPhase('travel');
+    setTravel({ to: target, duration, id: performance.now() });
+    window.dispatchEvent(new CustomEvent('tour:step', { detail: { index: target, arrived: false } }));
   }, [reducedMotion]);
+  const goTo = useCallback((id) => {
+    const index = STEPS.findIndex((item) => item.id === id);
+    if (index >= 0) goToStep(index);
+  }, [goToStep]);
+  const stepBy = useCallback((direction) => goToStep(tourRef.current.to + direction), [goToStep]);
 
   const room = useMemo(
     () => ({ goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight, nightRef, lightRef }),
@@ -2097,43 +2353,124 @@ export default function ScrollRoomPortfolio() {
   const previousProject = useCallback(() => setProjectIndex((value) => (value - 1 + projects.length) % projects.length), []);
   const nextProject = useCallback(() => setProjectIndex((value) => (value + 1) % projects.length), []);
 
-  // Scroll progress drives everything; React state only changes when the visible section changes.
+  // Animate the tour position once per frame. Progress is derived from it, so the box and camera follow exactly.
   useEffect(() => {
     let frame = 0;
-    const read = () => {
-      frame = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const value = max > 0 ? clamp01(window.scrollY / max) : 0;
-      progressRef.current.target = value;
-      const section = SECTIONS.find((item) => value >= item.start && value < item.end);
-      setPhase(section ? section.id : 'travel');
-    };
-    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(read); };
-    read();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, []);
-
-  // Smooth the scroll value once per animation frame so the box and camera never jump between wheel steps.
-  useEffect(() => {
-    let frame = 0;
-    let last = performance.now();
     const tick = (now) => {
-      const delta = Math.min((now - last) / 1000, 0.1);
-      last = now;
-      const state = progressRef.current;
-      state.smooth = reducedMotion ? state.target : THREE.MathUtils.lerp(state.smooth, state.target, 1 - Math.pow(0.0025, delta));
-      if (Math.abs(state.smooth - state.target) < 0.00005) state.smooth = state.target;
+      const tour = tourRef.current;
+      if (tour.moving) {
+        const t = tour.duration > 0 ? clamp01((now - tour.start) / (tour.duration * 1000)) : 1;
+        tour.position = tour.from + (tour.to - tour.from) * t;
+        if (t >= 1) {
+          tour.position = tour.to;
+          tour.moving = false;
+          tour.arrivedAt = now;
+          setPhase(STEPS[tour.to].id);
+          setTravel(null);
+          window.dispatchEvent(new CustomEvent('tour:step', { detail: { index: tour.to, arrived: true } }));
+        }
+      }
+      const value = progressAt(tour.position);
+      progressRef.current.target = value;
+      progressRef.current.smooth = value;
       frame = window.requestAnimationFrame(tick);
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [reducedMotion]);
+  }, []);
+
+  // The page itself no longer scrolls: wheel, swipe and keys move one stop at a time.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('box-tour-locked');
+    window.scrollTo(0, 0);
+    const wheel = { sum: 0, last: 0, lastAbs: 0, tail: false, cardUntil: 0 };
+    const onWheel = (event) => {
+      const now = performance.now();
+      const dy = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * window.innerHeight : event.deltaY;
+      if (Math.abs(dy) < Math.abs(event.deltaX)) return;
+      // Let a long card scroll first; only move on once it is at its edge and the gesture has paused.
+      if (cardCanScroll(event.target, Math.sign(dy))) { wheel.cardUntil = now + 380; wheel.last = now; return; }
+      event.preventDefault();
+      const gap = now - wheel.last;
+      const abs = Math.abs(dy);
+      // A pause or a sudden stronger push starts a new gesture; otherwise this is trackpad momentum.
+      const fresh = gap > 220 || (abs > wheel.lastAbs * 1.8 && abs > 24 && gap > 60);
+      wheel.last = now;
+      wheel.lastAbs = abs;
+      if (tourRef.current.moving) { wheel.tail = true; wheel.sum = 0; return; }
+      if (now < wheel.cardUntil) return;
+      // Stay on a stop for a moment after arriving, even if the wheel keeps turning.
+      if (now - (tourRef.current.arrivedAt ?? -1e9) < 650) { wheel.tail = true; return; }
+      if (wheel.tail && !fresh) return;
+      wheel.tail = false;
+      if (fresh) wheel.sum = 0;
+      wheel.sum += dy;
+      if (Math.abs(wheel.sum) >= 28) {
+        const direction = Math.sign(wheel.sum);
+        wheel.sum = 0;
+        wheel.tail = true;
+        stepBy(direction);
+      }
+    };
+
+    const touch = { x: 0, y: 0, active: false, cardTop: null, card: null };
+    const onTouchStart = (event) => {
+      if (event.touches.length !== 1) { touch.active = false; return; }
+      const point = event.touches[0];
+      const card = event.target instanceof Element ? event.target.closest('.box-tour-card') : null;
+      Object.assign(touch, { x: point.clientX, y: point.clientY, active: true, card, cardTop: card ? card.scrollTop : null });
+    };
+    const onTouchMove = (event) => {
+      if (!touch.active) return;
+      const dy = touch.y - event.touches[0].clientY;
+      if (touch.card && cardCanScroll(touch.card, Math.sign(dy))) return;
+      if (event.cancelable) event.preventDefault();
+    };
+    const onTouchEnd = (event) => {
+      if (!touch.active) return;
+      touch.active = false;
+      const point = event.changedTouches[0];
+      const dx = touch.x - point.clientX;
+      const dy = touch.y - point.clientY;
+      // A swipe that scrolled the card is not a tour swipe.
+      if (touch.card && Math.abs(touch.card.scrollTop - touch.cardTop) > 2) return;
+      if (Math.abs(dy) < 48 || Math.abs(dy) < Math.abs(dx) * 1.2) return;
+      if (tourRef.current.moving || performance.now() - (tourRef.current.arrivedAt ?? -1e9) < 350) return;
+      stepBy(Math.sign(dy));
+    };
+
+    const onKey = (event) => {
+      if (isTypingTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+      const onControl = event.target instanceof HTMLElement && event.target.closest('button, a');
+      let direction = 0;
+      if (event.key === 'ArrowDown' || event.key === 'PageDown' || (event.key === ' ' && !onControl && !event.shiftKey)) direction = 1;
+      if (event.key === 'ArrowUp' || event.key === 'PageUp' || (event.key === ' ' && !onControl && event.shiftKey)) direction = -1;
+      if (event.key === 'Home') { event.preventDefault(); goToStep(0); return; }
+      if (event.key === 'End') { event.preventDefault(); goToStep(LAST_STEP); return; }
+      if (!direction) return;
+      if (cardCanScroll(document.activeElement, direction)) return;
+      event.preventDefault();
+      if (!event.repeat) stepBy(direction);
+    };
+    const onGo = (event) => goToStep(event.detail?.index ?? 1);
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('tour:go', onGo);
+    return () => {
+      root.classList.remove('box-tour-locked');
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('tour:go', onGo);
+    };
+  }, [goToStep, stepBy]);
 
   // Keyboard project navigation while the computer is in view.
   useEffect(() => {
@@ -2173,14 +2510,15 @@ export default function ScrollRoomPortfolio() {
           </button>
         </div>
         <ol>
-          {SECTIONS.filter((section) => !section.hidden).map((section) => (
-            <li key={section.id}>
+          {STEPS.map((item, index) => (
+            <li key={item.id}>
               <button
                 type="button"
-                className={phase === section.id ? 'is-active' : ''}
-                aria-current={phase === section.id ? 'step' : undefined}
-                aria-label={`Go to ${section.label}`}
-                onClick={() => scrollToProgress(section.focus, reducedMotion)}
+                className={step === index ? 'is-active' : ''}
+                aria-current={step === index ? 'step' : undefined}
+                aria-label={`Go to ${item.label}`}
+                data-label={item.label}
+                onClick={() => goToStep(index)}
               >
                 <span />
               </button>
@@ -2189,6 +2527,8 @@ export default function ScrollRoomPortfolio() {
         </ol>
       </nav>
 
+
+      <TourProgress step={step} travel={travel} onStep={stepBy} />
 
       <AnimatePresence mode="wait" initial={false}>
         {phase === 'overview' && (

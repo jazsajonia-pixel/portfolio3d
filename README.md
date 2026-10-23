@@ -7,6 +7,7 @@ An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature b
 | Area | Status |
 | --- | --- |
 | Box-opening room tour (welcome, corner turn, lid/panel opening, three camera stops) | Implemented on PR #6; verified in headless Chromium screenshots |
+| Step-based tour: one scroll/swipe/key press = one stop, with a progress bar showing the next stop | Implemented on `fix/step-tour-and-box`; see `docs/STATUS.md` |
 | Contextual cards shown only at their camera stop | Implemented; verified at 1440 × 900, 1280 × 720, 768 × 1024, 390 × 844 |
 | Project arrows beside the 3D monitor, synced monitor and card | Implemented; tap, click and ← → keys verified in headless Chromium |
 | GIF previews and project data | Reused from the main Portfolio repo |
