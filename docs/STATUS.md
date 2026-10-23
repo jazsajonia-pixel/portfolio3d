@@ -1,5 +1,21 @@
 # Portfolio3D status
 
+## 2026-10-23: step-based tour and redesigned closed box (`fix/step-tour-and-box`)
+
+Tester feedback: scrolling did not reliably stop on the info cards, transitions were not smooth, it was unclear when the next card would appear, and scrolling a bit too far skipped past a card (both directions). The first (closed) box looked plain.
+
+| Area | Status |
+| --- | --- |
+| Navigation model | The page no longer free-scrolls through a 1000svh timeline. The tour has six stops (Welcome, The room, About and tools, Projects, How I build, Contact). One wheel gesture, swipe, or ↓/↑ / PageDown/PageUp / Space key moves exactly one stop; Home/End jump to the first/last stop. Implemented in `ScrollRoomPortfolio.jsx` (`STEPS`, `progressAt`, `goToStep`). |
+| Overshoot protection | Trackpad momentum after a step is ignored until the gesture pauses (or a clearly stronger new push starts), and every stop holds for 650 ms after arrival even if the wheel keeps turning. A long card scrolls first; the tour only moves on once the card is at its edge and the gesture has paused. Verified with simulated trackpad flicks (90 decaying wheel events per flick → one stop each, forward and back) and with touch swipes at 390 × 844. |
+| Transitions | Time-based travel between stops (2.6 s for the box opening, 1.5 s per room stop, faster per stop for multi-stop dot jumps). Camera easing comes from the keyframe segments, so motion starts and ends softly; the previous extra scroll-smoothing layer was removed. Cards leave as soon as travel starts and appear only after arrival. |
+| "What's next" indicator | New bottom progress bar: stop counter (`03 / 06`), "Scroll for Projects" / "Swipe up for Projects" (touch), a six-segment track that fills during travel, and explicit previous / next buttons (44 px). Step dots in the top bar now show their label on hover/focus and include "The room". |
+| Closed box | Timber frame and plank seams on the front and side panels, a JAZZ · PORTFOLIO · OPEN ME plaque with a brass latch, the missing front-right corner post, a glowing porthole on the side, a ribbon and bow on the lid with a darker overhanging rim, and an outside window with shutters and a flower box on the left wall. Everything on the opening panels folds and fades with them. The box also starts larger (0.36 scale on landscape, 0.52 on portrait). |
+| Layout | Cards sit between the top bar and the progress bar on landscape; on portrait they sit above the progress bar (max 38svh) and the camera framing reserves a little more space for them. |
+| Reduced motion | Travel is instant; no bouncing hints or segment fill animation. |
+| Lint / build | `npm run lint` (only the existing `no-img-element` warnings) and `npm run build` pass. |
+| Real phone review | **Not tested on a physical phone.** Headless software rendering was used for the screenshots in `docs/review/step-tour-*.jpg`. |
+
 Updated 2026-10-21 (second pass: Portfolio content, PC tower, interactions, intro order) for PR #6 (`feat/box-opening-room-tour`), following `docs/BOX-OPENING-ROOM-TOUR-PROMPT.md`.
 
 | Area | Status |
