@@ -1,5 +1,16 @@
 # Portfolio3D status
 
+## 2026-10-31: content refresh from Jazz's current resume (`feat/resume-automation-refresh`)
+
+| Area | Status |
+| --- | --- |
+| Positioning | Title, greeting, About card and page metadata now say "Full-stack developer & AI automation specialist" and describe Jazz as a BS IT graduate (SEAIT, 2022–2026) instead of "started 2024, learning by building". |
+| Projects (room monitor) | 12 projects. Added AI Lead Intake & Support Triage Automation (from the resume, no repo or demo), AI Job Hunting Agent (Make.com, tested with synthetic data), Cortex and Sapphire. FlowPilot, Chrauto AI, Chrono and MarketHub text now matches the resume. Retext's GitHub link was dropped because that repository is private. Long titles shrink to fit the monitor. |
+| Project archive `/projects` | Grouped into AI automation, AI agents, web apps, Android apps and games, and university projects; adds Chron Launcher and Heartline (private repos, marked "Private repository · demo on request"). Projects without a GIF show a "How it works" step flow. Shared with the main Portfolio repo. |
+| About / Services / Contact | Resume skill groups (including AI & Automation and Admin & Operations), work experience (Encoder at HPG Apopong; Farm Accounting Staff at Abdeo Farm; HR Office Intern at SEAIT), education, automation-first services, and GitHub and LinkedIn links on the contact page. |
+| Lint / build | `npm run lint` (only the existing `no-img-element` warnings) and `npm run build` pass. Headless screenshots checked for the About and Projects tour stops and the `/projects` and `/about` pages. |
+| Real phone review | Not tested on a physical phone. |
+
 ## 2026-10-23: step-based tour and redesigned closed box (`fix/step-tour-and-box`)
 
 Tester feedback: scrolling did not reliably stop on the info cards, transitions were not smooth, it was unclear when the next card would appear, and scrolling a bit too far skipped past a card (both directions). The first (closed) box looked plain.

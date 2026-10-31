@@ -37,7 +37,7 @@ export default function WelcomeIntro() {
           <span key={`${word}-${index}`} style={{ animationDelay: `${0.1 + index * 0.08}s` }}>{word} </span>
         ))}
       </h1>
-      <p style={{ animationDelay: '0.75s' }}>Full-stack web developer, learning by building. Come inside.</p>
+      <p style={{ animationDelay: '0.75s' }}>Full-stack developer &amp; AI automation specialist. Come inside.</p>
       <button type="button" className="box-tour-scroll-hint" onClick={openBox} tabIndex={hidden ? -1 : 0} style={{ animationDelay: '1s' }}>
         <span>{coarse ? 'Swipe up or tap to open the box' : 'Scroll or click to open the box'}</span>
         <svg width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80a8 8 0 0 1 11.32-11.32L128 164.69l74.34-74.35a8 8 0 0 1 11.32 11.32Z" /></svg>

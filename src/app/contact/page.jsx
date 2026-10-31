@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { EnvelopeSimple, Phone, MapPin } from 'phosphor-react';
+import { EnvelopeSimple, GithubLogo, LinkedinLogo, Phone, MapPin } from 'phosphor-react';
 
 const contactInfo = [
   { icon: EnvelopeSimple, label: 'Email', value: 'jaz.sajonia@gmail.com', link: 'mailto:jaz.sajonia@gmail.com' },
   { icon: Phone, label: 'Phone', value: '(+63) 9367046410', link: 'tel:+639367046410' },
-  { icon: MapPin, label: 'Location', value: 'General Santos City, Philippines' },
+  { icon: MapPin, label: 'Location', value: 'Lanton, Apopong, General Santos City, Philippines' },
+  { icon: GithubLogo, label: 'GitHub', value: 'github.com/jazsajonia-pixel', link: 'https://github.com/jazsajonia-pixel' },
+  { icon: LinkedinLogo, label: 'LinkedIn', value: 'Jazzther Bert Shanne Sajonia', link: 'https://www.linkedin.com/in/jazzther-bert-shanne-sajonia-a67502439' },
 ];
 
 export default function ContactPage() {

@@ -12,37 +12,42 @@ import * as THREE from 'three';
 /* Content                                                             */
 /* ------------------------------------------------------------------ */
 
-// Content mirrors the main Portfolio repo (src/app/page.jsx, about, services, contact), checked 2026-10-21.
+// Content mirrors the main Portfolio repo (src/app/page.jsx, about, services, contact), checked 2026-10-31 against the resume.
 const projects = [
-  { title: 'Retext', type: 'Local-first Android image editing', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a non-destructive Android editor for changing text in images while preserving every untouched pixel.', color: '#ff8b55', href: '/projects#retext', github: 'https://github.com/jazsajonia-pixel/retext' },
-  { title: 'Petalbound', type: 'Offline pixel-art action adventure', stack: ['Godot 4', 'GDScript', 'Android'], description: 'I built a landscape Godot adventure with exploration, quests, guardian fights, crafting, and touch controls.', color: '#6fe0b1', href: '/projects#petalbound', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
-  { title: 'Chrono', type: 'AI-assisted developer tooling', stack: ['React', 'TypeScript', 'GitHub'], description: 'I built a mobile-first workspace for connecting GitHub, reviewing code changes, and previewing an app with an AI coding assistant.', color: '#9b8cff', href: '/projects#chrono', github: 'https://github.com/jazsajonia-pixel/mobdevai', live: 'https://chrono-tau.vercel.app/' },
-  { title: 'MarketHub', type: 'Full-stack marketplace prototype', stack: ['React', 'TypeScript', 'PostgreSQL'], description: 'I built a marketplace prototype with seeded data and buyer, seller, and admin flows. Checkout is simulated; it does not process real payments.', color: '#ffca62', href: '/projects#markethub', github: 'https://github.com/jazsajonia-pixel/markethub', live: 'https://markethub-pi.vercel.app/' },
-  { title: 'Chrauto AI', type: 'Android accessibility assistant', stack: ['Kotlin', 'Jetpack Compose', 'Android'], description: 'I built a native Android assistant prototype for bounded accessibility actions. Consequential actions pause for approval.', color: '#e48bd8', href: '/projects#chrauto-ai', github: 'https://github.com/jazsajonia-pixel/Chrauto-AI' },
+  { title: 'AI Lead Intake & Support Triage', type: 'Make.com AI automation', stack: ['Make.com', 'OpenAI API', 'Airtable', 'Gmail', 'Webhooks'], description: 'I built a multi-scenario Make.com automation: inquiries arrive by webhook, OpenAI classifies intent, urgency, and sentiment into JSON, and routers update an Airtable CRM, alert on urgent cases, and hold AI-drafted replies for approval.', color: '#ffb347', href: '/projects#ai-lead-intake' },
+  { title: 'FlowPilot AI', type: 'Workflow automation platform', stack: ['React', 'TypeScript', 'PostgreSQL (Neon)', 'Drizzle'], description: 'I built an n8n/Zapier-style workflow builder with webhook and scheduled triggers, AI steps, conditions, and a server-side execution engine with retries, timeouts, and run history.', color: '#4fd1c5', href: '/projects#flowpilot', github: 'https://github.com/jazsajonia-pixel/flowpilot', live: 'https://flowpilot-sage-delta.vercel.app/' },
+  { title: 'Chrauto AI', type: 'Android AI automation agent', stack: ['Kotlin', 'Jetpack Compose', 'Gemini API'], description: 'I built a native Android agent that reads the screen through accessibility services, gets structured next actions from AI, validates them locally, and pauses for approval. It also has a hands-free voice mode.', color: '#e48bd8', href: '/projects#chrauto-ai', github: 'https://github.com/jazsajonia-pixel/Chrauto-AI' },
+  { title: 'AI Job Hunting Agent', type: 'Make.com AI automation', stack: ['Make.com', 'Gemini API', 'Google Sheets', 'Gmail'], description: 'I built Make.com scenarios that score job-alert emails against my profile, log them to a Google Sheets CRM, and draft resumes for my approval. Tested with sample data.', color: '#6fe0b1', href: '/projects#ai-job-hunting-agent' },
+  { title: 'Chrono', type: 'AI-powered mobile dev environment', stack: ['React', 'TypeScript', 'Vite', 'Expo'], description: 'I built a mobile-first AI coding workspace that pulls GitHub repositories, edits code with AI, previews the app on a virtual server and database, and pushes and merges changes.', color: '#9b8cff', href: '/projects#chrono', github: 'https://github.com/jazsajonia-pixel/mobdevai', live: 'https://chrono-tau.vercel.app/' },
+  { title: 'MarketHub', type: 'Full-stack marketplace', stack: ['React', 'TypeScript', 'Hono', 'PostgreSQL', 'Prisma'], description: 'I built a full-stack marketplace with buyer, seller, and admin flows: listings, orders, messaging, moderation, and analytics. Checkout is simulated.', color: '#ffca62', href: '/projects#markethub', github: 'https://github.com/jazsajonia-pixel/markethub', live: 'https://markethub-pi.vercel.app/' },
+  { title: 'Cortex', type: 'On-device AI agent for Android', stack: ['Kotlin', 'Jetpack Compose', 'llama.cpp'], description: 'I built an on-phone AI coding agent that runs open models locally, with file tools that ask before writing, memory, LoRA add-ons, and a 3D knowledge graph.', color: '#69c8ff', href: '/projects#cortex' },
   { title: 'SpeedSight', type: 'Computer vision / traffic analytics', stack: ['React', 'TypeScript', 'TensorFlow.js'], description: 'I built a browser-based traffic monitoring dashboard for vehicle detection, tracking, estimated speeds, and session analytics. Speed estimates are not certified for enforcement.', color: '#69a8ff', href: '/projects#speedsight', github: 'https://github.com/jazsajonia-pixel/Project-2-SpeedSight2', live: 'https://project-2-speed-sight2.vercel.app/' },
+  { title: 'Sapphire', type: 'Markdown vault with GitHub sync', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a local-first Android Markdown notes app with links, backlinks, search, a knowledge graph, and automatic two-way GitHub sync.', color: '#5b8cff', href: '/projects#sapphire', github: 'https://github.com/jazsajonia-pixel/sapphire' },
+  { title: 'Retext', type: 'Local-first Android image editing', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a non-destructive Android editor for changing text in images while preserving every untouched pixel.', color: '#ff8b55', href: '/projects#retext' },
   { title: 'igit', type: 'Android Git client', stack: ['Kotlin', 'Jetpack Compose', 'Git'], description: 'I built a local-first Git client for Android, with repository browsing, branch and commit workflows, sync, and conflict handling.', color: '#f5a35c', href: '/projects#igit', github: 'https://github.com/jazsajonia-pixel/igit' },
-  { title: 'FlowPilot AI', type: 'Visual workflow automation', stack: ['React', 'TypeScript', 'Workflow automation'], description: 'I built a visual workflow builder for connecting triggers, AI steps, conditions, and actions, with run history for reviewing executions.', color: '#4fd1c5', href: '/projects#flowpilot', github: 'https://github.com/jazsajonia-pixel/flowpilot', live: 'https://flowpilot-sage-delta.vercel.app/' },
+  { title: 'Petalbound', type: 'Offline pixel-art action adventure', stack: ['Godot 4', 'GDScript', 'Android'], description: 'I built a landscape Godot adventure with exploration, quests, guardian fights, crafting, and touch controls.', color: '#6fe0b1', href: '/projects#petalbound', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
 ];
 
 const skillGroups = [
-  { title: 'Used in my projects', items: ['HTML', 'CSS', 'JavaScript', 'TypeScript', 'React', 'Next.js', 'Tailwind CSS', 'PHP', 'MySQL', 'PostgreSQL', 'Prisma', 'Git', 'GitHub', 'Vercel'] },
-  { title: 'Mobile and games', items: ['Flutter', 'Dart', 'Kotlin', 'Jetpack Compose', 'Android', 'Godot 4', 'GDScript'] },
-  { title: 'Currently developing', items: ['Node.js', 'Express', 'Laravel', 'Hono', 'API design', 'AI integrations', 'Make.com'] },
+  { title: 'Web development', items: ['TypeScript', 'React', 'Next.js', 'Vite', 'Tailwind CSS', 'Node.js', 'Express', 'Hono', 'PHP', 'REST APIs'] },
+  { title: 'Databases and mobile', items: ['PostgreSQL', 'MySQL', 'Neon', 'Prisma', 'Drizzle', 'Flutter', 'Kotlin', 'Jetpack Compose', 'React Native (Expo)'] },
+  { title: 'AI and automation', items: ['Make.com', 'Webhooks', 'Airtable', 'Google Sheets', 'Gmail', 'OpenAI', 'Gemini', 'Claude', 'Structured outputs', 'AI agents'] },
+  { title: 'DevOps', items: ['Git', 'GitHub', 'GitHub Actions CI/CD', 'Vercel', 'Automated testing'] },
 ];
 
 const buildSteps = [
-  ['01', 'Plan the feature and user flow'],
-  ['02', 'Use AI as an implementation aid'],
-  ['03', 'Review, adjust, debug, and test'],
-  ['04', 'Integrate and deploy the result'],
+  ['01', 'Map the workflow and the data'],
+  ['02', 'Build it with AI as an implementation aid'],
+  ['03', 'Validate, handle errors, and test'],
+  ['04', 'Keep a human approval step, then deploy'],
 ];
 
 const practiceAreas = [
-  { title: 'Web app features', items: 'React / Next.js · TypeScript · responsive flows' },
-  { title: 'APIs and data', items: 'REST / JSON · MySQL / PostgreSQL · Prisma' },
-  { title: 'Interface implementation', items: 'Tailwind CSS · accessible controls · layouts' },
-  { title: 'AI API experiments', items: 'OpenAI · Gemini · Claude APIs (still learning)' },
-  { title: 'Workflow automation', items: 'Make.com triggers, routers, webhooks' },
+  { title: 'AI workflow automation', items: 'Make.com routers, filters, iterators, aggregators, error handlers' },
+  { title: 'AI integrations', items: 'OpenAI · Gemini · Claude APIs with structured JSON outputs' },
+  { title: 'CRM and business tools', items: 'Webhooks · Airtable · Google Sheets · Gmail' },
+  { title: 'Full-stack web apps', items: 'React / Next.js · Node.js / Hono · PostgreSQL' },
+  { title: 'Android apps', items: 'Kotlin / Compose · Flutter · on-device AI' },
 ];
 
 const FONT = '/fonts/space-grotesk-700.woff';
@@ -608,10 +613,21 @@ function drawMonitorScreen(canvas, project, index, total) {
   context.font = '500 26px "Space Grotesk", system-ui, sans-serif';
   context.fillText(project.type.toUpperCase(), 56, 140);
   context.fillStyle = '#fff6ea';
-  context.font = '700 92px "Space Grotesk", system-ui, sans-serif';
+  // Shrink long titles and stacks so they fit the screen.
+  let titleSize = 92;
+  context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
+  while (titleSize > 52 && context.measureText(project.title).width > width - 104) {
+    titleSize -= 4;
+    context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
+  }
   context.fillText(project.title, 52, 240);
   context.fillStyle = 'rgba(255,246,234,0.7)';
-  context.font = '500 26px "Space Grotesk", system-ui, sans-serif';
+  let stackSize = 26;
+  context.font = `500 ${stackSize}px "Space Grotesk", system-ui, sans-serif`;
+  while (stackSize > 18 && context.measureText(project.stack.join(' · ')).width > width - 112) {
+    stackSize -= 2;
+    context.font = `500 ${stackSize}px "Space Grotesk", system-ui, sans-serif`;
+  }
   context.fillText(project.stack.join(' · '), 56, 300);
 
   // Fake UI rows
@@ -2538,12 +2554,12 @@ export default function ScrollRoomPortfolio() {
         )}
         {phase === 'display' && (
           <ContextCard key="display" side="left" tag="About" tagColor="#78c25b" labelledBy="card-about">
-            <h2 id="card-about">Full-stack web developer, learning by building.</h2>
-            <p>I’m Jazzther Bert Shanne Sajonia. I started programming seriously in early 2024, through university coursework, independent study, and projects I build myself. My focus is React and TypeScript, APIs, and database-backed features; I also experiment with AI-assisted tools and workflow automation.</p>
+            <h2 id="card-about">Full-stack developer and AI automation specialist.</h2>
+            <p>I’m Jazzther Bert Shanne Sajonia, an IT graduate from General Santos City. I build web apps, Android apps, and AI-powered automations that connect webhooks, AI models, Airtable, and Google Workspace with structured outputs, error handling, and human review.</p>
             <dl className="box-tour-stats">
-              <div><dt>2024</dt><dd>Started coding seriously</dd></div>
-              <div><dt>{projects.length}</dt><dd>Featured personal builds</dd></div>
-              <div><dt>3</dt><dd>University and team projects</dd></div>
+              <div><dt>BS IT</dt><dd>SEAIT graduate, 2022–2026</dd></div>
+              <div><dt>{projects.length}</dt><dd>Featured projects</dd></div>
+              <div><dt>3</dt><dd>Jobs in admin and operations</dd></div>
             </dl>
             {skillGroups.map((group) => (
               <div key={group.title} className="box-tour-group">
@@ -2591,7 +2607,7 @@ export default function ScrollRoomPortfolio() {
             </ol>
             <p>AI can speed up exploration, but I’m responsible for understanding, reviewing, testing, and integrating the code I use.</p>
             <div className="box-tour-group">
-              <h3>Areas I’m practicing</h3>
+              <h3>What I do</h3>
               <ul className="box-tour-areas">
                 {practiceAreas.map((area) => <li key={area.title}><strong>{area.title}</strong><span>{area.items}</span></li>)}
               </ul>
@@ -2602,11 +2618,11 @@ export default function ScrollRoomPortfolio() {
         {phase === 'contact' && (
           <ContextCard key="contact" side="left" tag="Contact" tagColor="#e2703a" labelledBy="card-contact">
             <h2 id="card-contact">Let’s build something.</h2>
-            <p>Have a question about a project or want to discuss a collaboration? I’m most comfortable with a clearly scoped task that matches the work in this room.</p>
+            <p>Hiring for a full-stack or AI automation role, or have a workflow you want automated? Send me a message.</p>
             <ul className="box-tour-contact-list">
               <li><Envelope size={17} /><a href="mailto:jaz.sajonia@gmail.com">jaz.sajonia@gmail.com</a></li>
               <li><Phone size={17} /><a href="tel:+639367046410">(+63) 9367046410</a></li>
-              <li><MapPin size={17} /><span>General Santos City, Philippines</span></li>
+              <li><MapPin size={17} /><span>Lanton, Apopong, General Santos City</span></li>
             </ul>
             <div className="box-tour-actions box-tour-contact">
               <Link href="/contact"><Envelope size={16} /> Write a message</Link>
