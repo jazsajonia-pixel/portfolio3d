@@ -120,7 +120,7 @@ export default function Sidebar() {
             className="border-t border-dark-700 pt-6"
           >
             <p className="text-xs text-dark-500 text-center">
-              © 2024 Jazz Sajonia. All rights reserved.
+              © 2026 Jazz Sajonia. All rights reserved.
             </p>
           </motion.div>
         </div>

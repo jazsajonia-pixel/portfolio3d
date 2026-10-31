@@ -1,7 +1,7 @@
 export const defaultSEO = {
   titleTemplate: '%s | Jazz Sajonia Portfolio',
   description:
-    'Portfolio of Jazzther Bert Shanne Sajonia, featuring personal software projects, university work, and clear notes on his contributions.',
+    'Portfolio of Jazzther Bert Shanne Sajonia, full-stack developer and AI automation specialist: Make.com automations, AI agents, web apps, and Android apps.',
   canonical: 'https://jazz-portfolio1.vercel.app',
   openGraph: {
     type: 'website',
@@ -19,27 +19,27 @@ export const pageSEO = {
   home: {
     title: 'Home',
     description:
-      'Personal web development projects and university work by Jazzther Bert Shanne Sajonia, with live demos where available.',
+      'AI automations, full-stack web apps, and Android apps by Jazzther Bert Shanne Sajonia, with live demos where available.',
   },
   projects: {
     title: 'Projects',
     description:
-      'Personal and academic software projects with technologies, live demos where available, and a clear account of each contribution.',
+      'AI automation, AI agent, web, Android, and academic projects with technologies, live demos where available, and a clear account of each contribution.',
   },
   services: {
-    title: 'Areas of Practice',
+    title: 'Services',
     description:
-      'Web development, API, AI, and workflow automation areas developed through practical projects and focused learning.',
+      'Make.com workflow automation, AI integrations and agents, CRM and business-tool integrations, full-stack web apps, and Android apps.',
   },
   about: {
     title: 'About',
     description:
-      'Jazzther Bert Shanne Sajonia’s background, project experience, current tools, and approach to AI-assisted software development.',
+      'Jazzther Bert Shanne Sajonia: IT graduate, full-stack developer and AI automation specialist. Skills, work experience, and education.',
   },
   contact: {
     title: 'Contact',
     description:
-      'Contact Jazzther Bert Shanne Sajonia by email about a project or collaboration.',
+      'Contact Jazzther Bert Shanne Sajonia by email or phone about a role, project, or automation.',
   },
 };
 
@@ -48,7 +48,7 @@ export const generateMetadata = (page) => {
   return {
     title: pageData.title,
     description: pageData.description,
-    keywords: ['Web Developer', 'React', 'Next.js', 'Portfolio', 'AI-assisted development'],
+    keywords: ['Full-stack developer', 'AI automation specialist', 'Make.com', 'React', 'Next.js', 'Portfolio'],
     openGraph: {
       ...defaultSEO.openGraph,
       title: `${pageData.title} | Jazz Sajonia`,
