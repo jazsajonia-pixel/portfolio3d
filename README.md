@@ -2,18 +2,16 @@
 
 An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature box. Scrolling turns the box to a corner, opens the lid and front panels, and tours the room inside: a display/shelf wall, a computer workstation, and a central notes table.
 
-## Current status
-
+## Current status (last verified 2026-10-31)
 | Area | Status |
 | --- | --- |
-| Box-opening room tour (welcome, corner turn, lid/panel opening, three camera stops) | Implemented on PR #6; verified in headless Chromium screenshots |
-| Step-based tour: one scroll/swipe/key press = one stop, with a progress bar showing the next stop | Implemented on `fix/step-tour-and-box`; see `docs/STATUS.md` |
-| Contextual cards shown only at their camera stop | Implemented; verified at 1440 × 900, 1280 × 720, 768 × 1024, 390 × 844 |
-| Project arrows beside the 3D monitor, synced monitor and card | Implemented; tap, click and ← → keys verified in headless Chromium |
-| GIF previews and project data | Reused from the main Portfolio repo |
-| Lint / production build | Pass locally (only the archive's existing `no-img-element` warnings) |
-| Real phone scroll feel and frame rate | Not tested |
-| Production deployment | Unchanged until PR #6 is approved and merged |
+| Box-opening room tour and six-step navigation | Implemented on `main`; headless Chromium checks are documented in `docs/STATUS.md` |
+| Contextual cards, project controls and responsive layout | Implemented; headless checks include 1440 × 900, 1280 × 720, 768 × 1024 and 390 × 844 |
+| Portfolio content | Refreshed from the current resume; the room monitor cycles 12 projects |
+| Lint / production build | Passed locally in the 2026-10-31 verification (`npm run lint`, `npm run build`; existing `no-img-element` warnings) |
+| GitHub Actions | The latest CI runs for `main` (`bb2260d`, run #41178160277) failed to start because of the account billing/spending-limit block; see the [run](https://github.com/jazsajonia-pixel/portfolio3d/actions/runs/41178160277) |
+| Production deployment | The 2026-10-31 handoff reports the `bb2260d` deployment live at [jaz-space.vercel.app](https://jaz-space.vercel.app) |
+| Real phone scroll feel and frame rate | Not tested on a physical phone |
 
 ## Stack
 
