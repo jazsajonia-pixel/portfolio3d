@@ -1,32 +1,19 @@
 'use client';
 
 import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
-import { Html, Instance, Instances, RoundedBox, Text, Trail } from '@react-three/drei';
+import { Environment, Html, Instance, Instances, Lightformer, RoundedBox, Text, Trail, useTexture } from '@react-three/drei';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Envelope, GithubLogo, Lightbulb, LinkedinLogo, MapPin, Moon, Phone, Sun } from 'phosphor-react';
 import * as THREE from 'three';
+import { projects as allProjects, roomProjects as projects } from '@/data/projects';
 
 /* ------------------------------------------------------------------ */
 /* Content                                                             */
 /* ------------------------------------------------------------------ */
 
-// Content mirrors the main Portfolio repo (src/app/page.jsx, about, services, contact), checked 2026-10-31 against the resume.
-const projects = [
-  { title: 'AI Lead Intake & Support Triage', type: 'Make.com AI automation', stack: ['Make.com', 'OpenAI API', 'Airtable', 'Gmail', 'Webhooks'], description: 'I built a multi-scenario Make.com automation: inquiries arrive by webhook, OpenAI classifies intent, urgency, and sentiment into JSON, and routers update an Airtable CRM, alert on urgent cases, and hold AI-drafted replies for approval.', color: '#ffb347', href: '/projects#ai-lead-intake' },
-  { title: 'FlowPilot AI', type: 'Workflow automation platform', stack: ['React', 'TypeScript', 'PostgreSQL (Neon)', 'Drizzle'], description: 'I built an n8n/Zapier-style workflow builder with webhook and scheduled triggers, AI steps, conditions, and a server-side execution engine with retries, timeouts, and run history.', color: '#4fd1c5', href: '/projects#flowpilot', github: 'https://github.com/jazsajonia-pixel/flowpilot', live: 'https://flowpilot-sage-delta.vercel.app/' },
-  { title: 'Chrauto AI', type: 'Android AI automation agent', stack: ['Kotlin', 'Jetpack Compose', 'Gemini API'], description: 'I built a native Android agent that reads the screen through accessibility services, gets structured next actions from AI, validates them locally, and pauses for approval. It also has a hands-free voice mode.', color: '#e48bd8', href: '/projects#chrauto-ai', github: 'https://github.com/jazsajonia-pixel/Chrauto-AI' },
-  { title: 'AI Job Hunting Agent', type: 'Make.com AI automation', stack: ['Make.com', 'Gemini API', 'Google Sheets', 'Gmail'], description: 'I built Make.com scenarios that score job-alert emails against my profile, log them to a Google Sheets CRM, and draft resumes for my approval. Tested with sample data.', color: '#6fe0b1', href: '/projects#ai-job-hunting-agent' },
-  { title: 'Chrono', type: 'AI-powered mobile dev environment', stack: ['React', 'TypeScript', 'Vite', 'Expo'], description: 'I built a mobile-first AI coding workspace that pulls GitHub repositories, edits code with AI, previews the app on a virtual server and database, and pushes and merges changes.', color: '#9b8cff', href: '/projects#chrono', github: 'https://github.com/jazsajonia-pixel/mobdevai', live: 'https://chrono-tau.vercel.app/' },
-  { title: 'MarketHub', type: 'Full-stack marketplace', stack: ['React', 'TypeScript', 'Hono', 'PostgreSQL', 'Prisma'], description: 'I built a full-stack marketplace with buyer, seller, and admin flows: listings, orders, messaging, moderation, and analytics. Checkout is simulated.', color: '#ffca62', href: '/projects#markethub', github: 'https://github.com/jazsajonia-pixel/markethub', live: 'https://markethub-pi.vercel.app/' },
-  { title: 'Cortex', type: 'On-device AI agent for Android', stack: ['Kotlin', 'Jetpack Compose', 'llama.cpp'], description: 'I built an on-phone AI coding agent that runs open models locally, with file tools that ask before writing, memory, LoRA add-ons, and a 3D knowledge graph.', color: '#69c8ff', href: '/projects#cortex' },
-  { title: 'SpeedSight', type: 'Computer vision / traffic analytics', stack: ['React', 'TypeScript', 'TensorFlow.js'], description: 'I built a browser-based traffic monitoring dashboard for vehicle detection, tracking, estimated speeds, and session analytics. Speed estimates are not certified for enforcement.', color: '#69a8ff', href: '/projects#speedsight', github: 'https://github.com/jazsajonia-pixel/Project-2-SpeedSight2', live: 'https://project-2-speed-sight2.vercel.app/' },
-  { title: 'Sapphire', type: 'Markdown vault with GitHub sync', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a local-first Android Markdown notes app with links, backlinks, search, a knowledge graph, and automatic two-way GitHub sync.', color: '#5b8cff', href: '/projects#sapphire', github: 'https://github.com/jazsajonia-pixel/sapphire' },
-  { title: 'Retext', type: 'Local-first Android image editing', stack: ['Flutter', 'Dart', 'Android'], description: 'I built a non-destructive Android editor for changing text in images while preserving every untouched pixel.', color: '#ff8b55', href: '/projects#retext' },
-  { title: 'igit', type: 'Android Git client', stack: ['Kotlin', 'Jetpack Compose', 'Git'], description: 'I built a local-first Git client for Android, with repository browsing, branch and commit workflows, sync, and conflict handling.', color: '#f5a35c', href: '/projects#igit', github: 'https://github.com/jazsajonia-pixel/igit' },
-  { title: 'Petalbound', type: 'Offline pixel-art action adventure', stack: ['Godot 4', 'GDScript', 'Android'], description: 'I built a landscape Godot adventure with exploration, quests, guardian fights, crafting, and touch controls.', color: '#6fe0b1', href: '/projects#petalbound', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
-];
+// Project content lives in src/data/projects.js (shared with the /projects archive).
 
 const skillGroups = [
   { title: 'Web development', items: ['TypeScript', 'React', 'Next.js', 'Vite', 'Tailwind CSS', 'Node.js', 'Express', 'Hono', 'PHP', 'REST APIs'] },
@@ -109,17 +96,25 @@ const FINAL_YAW = -Math.PI / 4; // the open corner faces the viewer
 const START_YAW = 0.42;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+// A calm, materials-first palette: warm limewash walls, walnut joinery, oak floor, charcoal metal and a single
+// terracotta accent. Colours are chosen so the room still reads as one object from the overview.
 const palette = {
-  plaster: '#f6e7d2',
-  plasterShade: '#efdcc2',
-  timber: '#c98a52',
-  timberDark: '#a86c3a',
-  floorA: '#d9a066',
-  floorB: '#cf9459',
-  base: '#f3e4cf',
-  lid: '#e98f45',
-  rug: '#f4c15d',
-  ink: '#3b2a1e',
+  plaster: '#efe8de',
+  plasterShade: '#e5ddd1',
+  timber: '#8d5d3b',
+  timberDark: '#5e3b25',
+  floorA: '#c99d70',
+  floorB: '#bf9266',
+  base: '#e8e0d4',
+  lid: '#c4603a',
+  rug: '#d8ccb7',
+  ink: '#23201d',
+  accent: '#c4572e',
+  metal: '#2a2a2d',
+  steel: '#8e9096',
+  brass: '#b88d4e',
+  linen: '#f6f1e8',
+  sage: '#7f8b70',
 };
 
 // Convert a room-local point into world space for the opened box.
@@ -260,34 +255,159 @@ function CameraTour({ progressRef, reducedMotion }) {
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
 
-function Block({ args, color, roughness = 0.82, castShadow = true, receiveShadow = true, ...props }) {
+// Procedural surface textures (generated once, shared). They are near-white so the material colour still
+// sets the hue; the texture only adds grain and a little tonal variation, like a real finish would.
+const textureCache = {};
+function seeded(seed) {
+  let value = seed;
+  return () => { value = (value * 16807) % 2147483647; return value / 2147483647; };
+}
+function makeCanvasTexture(key, width, height, paint, { repeat = [1, 1], rotate = false } = {}) {
+  if (typeof document === 'undefined') return null;
+  if (textureCache[key]) return textureCache[key];
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  paint(canvas.getContext('2d'), width, height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(...repeat);
+  texture.anisotropy = 4;
+  if (rotate) { texture.center.set(0.5, 0.5); texture.rotation = Math.PI / 2; }
+  textureCache[key] = texture;
+  return texture;
+}
+function paintWood(context, width, height, seed = 3) {
+  const random = seeded(seed);
+  context.fillStyle = '#f4ede4';
+  context.fillRect(0, 0, width, height);
+  // Long grain lines running along the board (vertical in texture space).
+  for (let line = 0; line < 70; line += 1) {
+    const x = random() * width;
+    const tone = 200 + Math.floor(random() * 40);
+    context.strokeStyle = `rgba(${tone - 70}, ${tone - 105}, ${tone - 140}, ${0.05 + random() * 0.12})`;
+    context.lineWidth = 0.6 + random() * 2.2;
+    context.beginPath();
+    context.moveTo(x, 0);
+    for (let y = 0; y <= height; y += 16) context.lineTo(x + Math.sin(y * 0.012 + line) * (3 + random() * 4), y);
+    context.stroke();
+  }
+  // A couple of soft knots.
+  for (let knot = 0; knot < 2; knot += 1) {
+    const gradient = context.createRadialGradient(random() * width, random() * height, 1, width * 0.5, height * 0.5, 40);
+    gradient.addColorStop(0, 'rgba(120, 80, 50, 0.08)');
+    gradient.addColorStop(1, 'rgba(120, 80, 50, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+  }
+}
+function paintPlaster(context, width, height) {
+  const random = seeded(11);
+  context.fillStyle = '#f7f4ef';
+  context.fillRect(0, 0, width, height);
+  for (let blot = 0; blot < 220; blot += 1) {
+    const x = random() * width;
+    const y = random() * height;
+    const r = 8 + random() * 40;
+    const gradient = context.createRadialGradient(x, y, 0, x, y, r);
+    const dark = random() > 0.5;
+    gradient.addColorStop(0, dark ? 'rgba(150, 130, 110, 0.035)' : 'rgba(255, 255, 255, 0.05)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+}
+function paintFabric(context, width, height) {
+  context.fillStyle = '#f2efea';
+  context.fillRect(0, 0, width, height);
+  for (let y = 0; y < height; y += 2) {
+    context.fillStyle = `rgba(90, 80, 70, ${y % 4 ? 0.05 : 0.09})`;
+    context.fillRect(0, y, width, 1);
+  }
+  for (let x = 0; x < width; x += 2) {
+    context.fillStyle = `rgba(90, 80, 70, ${x % 4 ? 0.03 : 0.07})`;
+    context.fillRect(x, 0, 1, height);
+  }
+}
+const woodAlong = () => makeCanvasTexture('wood-v', 256, 512, (c, w, h) => paintWood(c, w, h, 3));
+const woodAcross = () => makeCanvasTexture('wood-h', 256, 512, (c, w, h) => paintWood(c, w, h, 5), { rotate: true });
+const plasterMap = () => makeCanvasTexture('plaster', 512, 512, paintPlaster, { repeat: [1.5, 1.5] });
+const fabricMap = () => makeCanvasTexture('fabric', 128, 128, paintFabric, { repeat: [4, 4] });
+
+function Block({ args, color, roughness = 0.82, metalness = 0, map, castShadow = true, receiveShadow = true, ...props }) {
   return (
     <mesh castShadow={castShadow} receiveShadow={receiveShadow} {...props}>
       <boxGeometry args={args} />
-      <meshStandardMaterial color={color} roughness={roughness} />
+      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} map={map ?? null} />
     </mesh>
   );
 }
 
-function Plant({ position, scale = 1, pot = '#e7a27c' }) {
+// Glazed ceramic pot with a rim, soil and a leafy plant built from tapered leaves on short stems.
+function Plant({ position, scale = 1, pot = '#e9e3da', leaf = '#4f7a4c', kind = 'leafy' }) {
+  const leaves = useMemo(() => {
+    const random = seeded(kind === 'tall' ? 21 : 9);
+    const count = kind === 'tall' ? 16 : 11;
+    return Array.from({ length: count }, (_, index) => {
+      const angle = (index / count) * Math.PI * 2 + random() * 0.6;
+      const height = kind === 'tall' ? 0.42 + random() * 0.6 : 0.32 + random() * 0.18;
+      const lean = 0.35 + random() * 0.5;
+      return { angle, height, lean, size: (kind === 'tall' ? 0.11 : 0.075) * (0.8 + random() * 0.45), shade: random() };
+    });
+  }, [kind]);
+  const potHeight = kind === 'tall' ? 0.34 : 0.24;
   return (
     <group position={position} scale={scale}>
-      <mesh castShadow receiveShadow position={[0, 0.13, 0]}>
-        <cylinderGeometry args={[0.14, 0.11, 0.26, 16]} />
-        <meshStandardMaterial color={pot} roughness={0.85} />
+      <mesh castShadow receiveShadow position={[0, potHeight / 2, 0]}>
+        <cylinderGeometry args={[0.14, 0.105, potHeight, 28]} />
+        <meshStandardMaterial color={pot} roughness={0.35} />
       </mesh>
-      {[[0, 0.38, 0, 0.17], [0.09, 0.33, 0.05, 0.12], [-0.08, 0.34, -0.04, 0.13], [0.02, 0.5, -0.03, 0.11]].map(([x, y, z, r], index) => (
-        <mesh key={index} castShadow position={[x, y, z]}>
-          <icosahedronGeometry args={[r, 1]} />
-          <meshStandardMaterial color={index % 2 ? '#7cbf6a' : '#5fa856'} roughness={0.9} flatShading />
-        </mesh>
-      ))}
+      <mesh castShadow position={[0, potHeight - 0.006, 0]}>
+        <torusGeometry args={[0.137, 0.012, 8, 28]} />
+        <meshStandardMaterial color={pot} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, potHeight - 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.128, 24]} />
+        <meshStandardMaterial color="#4a3426" roughness={1} />
+      </mesh>
+      {leaves.map(({ angle, height, lean, size, shade }, index) => {
+        const reach = Math.sin(lean) * height * 0.5;
+        return (
+          <group key={index} position={[0, potHeight - 0.02, 0]} rotation={[0, angle, 0]}>
+            <mesh position={[reach / 2, height / 2, 0]} rotation={[0, 0, -lean * 0.5]}>
+              <cylinderGeometry args={[0.006, 0.008, height, 5]} />
+              <meshStandardMaterial color="#5d7a45" roughness={0.8} />
+            </mesh>
+            <mesh castShadow position={[reach, height, 0]} rotation={[0, 0, -lean]} scale={[size * 0.55, size * 1.25, size * 0.12]}>
+              <sphereGeometry args={[1, 12, 10]} />
+              <meshStandardMaterial color={shade > 0.5 ? leaf : '#3f6a40'} roughness={0.55} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
 
-function Book({ position, size = [0.09, 0.42, 0.3], color, tilt = 0 }) {
-  return <Block args={size} color={color} roughness={0.78} position={position} rotation={[0, 0, tilt]} />;
+// Cloth-bound book with a printed spine label.
+function Book({ position, size = [0.09, 0.42, 0.3], color, tilt = 0, title }) {
+  return (
+    <group position={position} rotation={[0, 0, tilt]}>
+      <RoundedBox args={size} radius={0.008} smoothness={2} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.7} />
+      </RoundedBox>
+      {/* Page block visible at the top */}
+      <Block args={[size[0] - 0.012, 0.004, size[2] - 0.02]} color="#efe6d4" position={[0, size[1] / 2 + 0.001, 0.004]} castShadow={false} />
+      <Block args={[size[0] + 0.001, 0.012, 0.004]} color={palette.brass} metalness={0.6} roughness={0.35} position={[0, size[1] * 0.36, size[2] / 2 + 0.001]} castShadow={false} />
+      {title && (
+        <Text font={FONT} position={[0, -0.02, size[2] / 2 + 0.003]} rotation={[0, 0, Math.PI / 2]} fontSize={Math.min(0.034, size[0] * 0.42)} color="#f3ead9" anchorX="center" anchorY="middle" letterSpacing={0.08} maxWidth={size[1] * 0.8}>
+          {title}
+        </Text>
+      )}
+    </group>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -300,7 +420,7 @@ const useRoom = () => useContext(RoomContext);
 
 export const RGB_MODES = ['wave', 'sunset', 'off'];
 const RGB_LABELS = { wave: 'Wave', sunset: 'Sunset', off: 'Off' };
-const RGB_THEME = ['#ff8b55', '#f7a8b8', '#b79cff', '#ffca62'];
+const RGB_THEME = ['#e07a4b', '#d9a65b', '#5fb3a3', '#7c8ce0'];
 
 // Wraps a room object: lifts slightly on hover, shows a small label, runs `onSelect` on click/tap.
 function Interactive({ label, onSelect, labelOffset = [0, 0.4, 0], children, ...props }) {
@@ -349,7 +469,7 @@ function ClockHands() {
     <group position={[0, 0, 0.04]}>
       <group ref={hour}><Block args={[0.018, 0.09, 0.01]} color={palette.ink} position={[0, 0.04, 0]} castShadow={false} /></group>
       <group ref={minute}><Block args={[0.012, 0.13, 0.01]} color={palette.ink} position={[0, 0.06, 0.005]} castShadow={false} /></group>
-      <group ref={second}><Block args={[0.006, 0.14, 0.01]} color="#e2703a" position={[0, 0.06, 0.01]} castShadow={false} /></group>
+      <group ref={second}><Block args={[0.006, 0.14, 0.01]} color={palette.accent} position={[0, 0.06, 0.01]} castShadow={false} /></group>
     </group>
   );
 }
@@ -363,15 +483,15 @@ function Fan({ position, speed = 9, ringRef }) {
   return (
     <group position={position}>
       <mesh rotation={[0, Math.PI / 2, 0]}>
-        <torusGeometry args={[0.105, 0.014, 8, 28]} />
-        <meshStandardMaterial ref={ringRef} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.6} roughness={0.4} toneMapped={false} />
+        <torusGeometry args={[0.105, 0.008, 8, 36]} />
+        <meshStandardMaterial ref={ringRef} color="#1b1c1f" emissive="#e07a4b" emissiveIntensity={1.6} roughness={0.4} toneMapped={false} />
       </mesh>
       <group ref={blades}>
         {Array.from({ length: 7 }, (_, blade) => (
           <group key={blade} rotation={[(blade / 7) * Math.PI * 2, 0, 0]}>
             <mesh position={[0.004, 0.055, 0]} rotation={[0, 0.5, 0]}>
               <boxGeometry args={[0.008, 0.07, 0.04]} />
-              <meshStandardMaterial color="#efe4d6" roughness={0.5} />
+              <meshStandardMaterial color="#2a2b2f" roughness={0.45} metalness={0.2} />
             </mesh>
           </group>
         ))}
@@ -390,26 +510,54 @@ function Fan({ position, speed = 9, ringRef }) {
 
 function SpinningRecord() {
   const record = useRef();
+  const arm = useRef();
   const [playing, setPlaying] = useState(true);
   const { reducedMotion } = useRoom();
   useFrame((_, delta) => {
     if (record.current && playing && !reducedMotion) record.current.rotation.y += delta * 3.5;
+    if (arm.current) arm.current.rotation.y += ((playing ? -0.42 : 0.05) - arm.current.rotation.y) * Math.min(1, delta * 4);
   });
   return (
-    <Interactive label={playing ? 'Pause the record' : 'Play the record'} onSelect={() => setPlaying((value) => !value)} position={[-0.35, 0.765, 0]} labelOffset={[0, 0.3, 0]}>
-      <group ref={record}>
+    <Interactive label={playing ? 'Pause the record' : 'Play the record'} onSelect={() => setPlaying((value) => !value)} position={[-0.42, 0.76, 0.02]} labelOffset={[0, 0.35, 0]}>
+      {/* Walnut plinth with aluminium feet */}
+      <RoundedBox args={[0.62, 0.07, 0.46]} radius={0.012} smoothness={2} position={[0, 0.035, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAcross()} />
+      </RoundedBox>
+      <Block args={[0.6, 0.004, 0.44]} color="#1d1d1f" roughness={0.6} position={[0, 0.072, 0]} castShadow={false} />
+      {/* Platter and record */}
+      <mesh position={[-0.06, 0.08, 0]} castShadow>
+        <cylinderGeometry args={[0.19, 0.19, 0.014, 40]} />
+        <meshStandardMaterial color={palette.steel} roughness={0.3} metalness={0.8} />
+      </mesh>
+      <group ref={record} position={[-0.06, 0.09, 0]}>
         <mesh castShadow>
-          <cylinderGeometry args={[0.26, 0.26, 0.012, 32]} />
-          <meshStandardMaterial color="#2b2522" roughness={0.4} />
+          <cylinderGeometry args={[0.18, 0.18, 0.006, 40]} />
+          <meshStandardMaterial color="#141414" roughness={0.28} metalness={0.2} />
         </mesh>
-        <mesh position={[0, 0.008, 0]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.004, 20]} />
-          <meshStandardMaterial color="#f2c86b" roughness={0.6} />
+        {[0.15, 0.12, 0.09].map((radius) => (
+          <mesh key={radius} position={[0, 0.0035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[radius - 0.002, radius, 40]} />
+            <meshStandardMaterial color="#2a2a2a" roughness={0.2} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.004, 0]}>
+          <cylinderGeometry args={[0.055, 0.055, 0.002, 24]} />
+          <meshStandardMaterial color={palette.accent} roughness={0.6} />
         </mesh>
-        <mesh position={[0.05, 0.011, 0]}>
-          <boxGeometry args={[0.03, 0.002, 0.01]} />
-          <meshStandardMaterial color="#e2703a" />
+      </group>
+      {/* Tonearm */}
+      <group position={[0.21, 0.08, -0.14]}>
+        <mesh castShadow position={[0, 0.02, 0]}>
+          <cylinderGeometry args={[0.025, 0.03, 0.04, 16]} />
+          <meshStandardMaterial color={palette.steel} roughness={0.3} metalness={0.8} />
         </mesh>
+        <group ref={arm} position={[0, 0.045, 0]}>
+          <mesh position={[0, 0, 0.12]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.005, 0.005, 0.24, 8]} />
+            <meshStandardMaterial color="#c9cbd0" roughness={0.25} metalness={0.9} />
+          </mesh>
+          <Block args={[0.03, 0.012, 0.04]} color="#1d1d1f" position={[0, -0.004, 0.245]} castShadow={false} />
+        </group>
       </group>
     </Interactive>
   );
@@ -421,12 +569,254 @@ function WigglePlant(props) {
   const { reducedMotion } = useRoom();
   useFrame(({ clock }, delta) => {
     wiggle.current = Math.max(0, wiggle.current - delta);
-    if (group.current) group.current.rotation.z = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 18) * 0.12 * wiggle.current;
+    if (group.current) group.current.rotation.z = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 18) * 0.08 * wiggle.current;
   });
   return (
-    <Interactive label="Say hi to the plant" onSelect={() => { wiggle.current = 1.2; }} position={props.position} labelOffset={[0, 1.1, 0]}>
-      <group ref={group}><Plant position={[0, 0, 0]} scale={props.scale} pot={props.pot} /></group>
+    <Interactive label="Say hi to the plant" onSelect={() => { wiggle.current = 1.2; }} position={props.position} labelOffset={[0, 1.4, 0]}>
+      <group ref={group}><Plant position={[0, 0, 0]} scale={props.scale} pot={props.pot} kind={props.kind} /></group>
     </Interactive>
+  );
+}
+
+// Thin gallery frame with a white mat. `w`/`h` are outside dimensions; children render on the artwork plane.
+function GalleryFrame({ w, h, mat = 0.07, color = '#1f1d1b', position, children }) {
+  const bar = 0.032;
+  return (
+    <group position={position}>
+      <Block args={[w, bar, 0.045]} color={color} roughness={0.45} position={[0, h / 2 - bar / 2, 0]} />
+      <Block args={[w, bar, 0.045]} color={color} roughness={0.45} position={[0, -h / 2 + bar / 2, 0]} />
+      <Block args={[bar, h - 2 * bar, 0.045]} color={color} roughness={0.45} position={[-w / 2 + bar / 2, 0, 0]} />
+      <Block args={[bar, h - 2 * bar, 0.045]} color={color} roughness={0.45} position={[w / 2 - bar / 2, 0, 0]} />
+      <mesh position={[0, 0, 0.004]} receiveShadow>
+        <planeGeometry args={[w - 2 * bar, h - 2 * bar]} />
+        <meshStandardMaterial color="#f8f6f1" roughness={0.95} />
+      </mesh>
+      <group position={[0, 0, 0.008]}>{children({ w: w - 2 * bar - 2 * mat, h: h - 2 * bar - 2 * mat })}</group>
+    </group>
+  );
+}
+
+function PortraitPhoto({ w, h }) {
+  const texture = useTexture('/room/profile.jpg');
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return (
+    <mesh>
+      <planeGeometry args={[w, h]} />
+      <meshStandardMaterial map={texture} roughness={0.6} />
+    </mesh>
+  );
+}
+
+function QlineMark({ size }) {
+  const texture = useTexture('/room/qline-icon.png');
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return (
+    <mesh position={[0, 0.03, 0.002]}>
+      <planeGeometry args={[size, size]} />
+      <meshBasicMaterial map={texture} transparent toneMapped={false} />
+    </mesh>
+  );
+}
+
+function drawDiploma(context, width, height) {
+  context.fillStyle = '#fbf7ee';
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = '#b88d4e';
+  context.lineWidth = 6;
+  context.strokeRect(22, 22, width - 44, height - 44);
+  context.lineWidth = 1.5;
+  context.strokeRect(36, 36, width - 72, height - 72);
+  context.textAlign = 'center';
+  context.fillStyle = '#5e3b25';
+  context.font = '600 22px "Space Grotesk", system-ui, sans-serif';
+  context.fillText('SOUTH EAST ASIAN INSTITUTE OF TECHNOLOGY', width / 2, 104);
+  context.fillStyle = '#23201d';
+  context.font = '700 44px Georgia, "Times New Roman", serif';
+  context.fillText('Bachelor of Science', width / 2, 196);
+  context.fillText('in Information Technology', width / 2, 250);
+  context.fillStyle = '#6b6058';
+  context.font = 'italic 26px Georgia, "Times New Roman", serif';
+  context.fillText('Jazzther Bert Shanne O. Sajonia', width / 2, 330);
+  context.fillStyle = '#b88d4e';
+  context.fillRect(width / 2 - 120, 352, 240, 2);
+  context.fillStyle = '#5e3b25';
+  context.font = '600 20px "Space Grotesk", system-ui, sans-serif';
+  context.fillText('CLASS OF 2026', width / 2, 400);
+  // Seal
+  context.fillStyle = '#c4572e';
+  context.beginPath();
+  context.arc(width - 120, height - 104, 42, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = '#fbf7ee';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(width - 120, height - 104, 32, 0, Math.PI * 2);
+  context.stroke();
+}
+
+function Diploma({ w, h }) {
+  const texture = useMemo(() => makeCanvasTexture('diploma', 768, 520, drawDiploma), []);
+  useEffect(() => {
+    // Redraw once the web fonts are ready so the certificate text uses Space Grotesk.
+    if (!texture || !document.fonts?.ready) return;
+    document.fonts.ready.then(() => { drawDiploma(texture.image.getContext('2d'), 768, 520); texture.needsUpdate = true; });
+  }, [texture]);
+  return (
+    <mesh>
+      <planeGeometry args={[w, h]} />
+      <meshStandardMaterial map={texture} roughness={0.85} />
+    </mesh>
+  );
+}
+
+function WallClock() {
+  return (
+    <group position={[-1.5, 2.62, -S + 0.04]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.24, 0.24, 0.05, 48]} />
+        <meshStandardMaterial color={palette.metal} roughness={0.4} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, 0, 0.026]}>
+        <circleGeometry args={[0.215, 48]} />
+        <meshStandardMaterial color="#f8f6f1" roughness={0.7} />
+      </mesh>
+      {Array.from({ length: 12 }, (_, tick) => {
+        const angle = (tick / 12) * Math.PI * 2;
+        const long = tick % 3 === 0;
+        return (
+          <Block key={tick} args={[long ? 0.012 : 0.006, long ? 0.04 : 0.022, 0.004]} color={palette.ink} castShadow={false} receiveShadow={false}
+            position={[Math.sin(angle) * 0.18, Math.cos(angle) * 0.18, 0.029]} rotation={[0, 0, -angle]} />
+        );
+      })}
+      <group position={[0, 0, -0.01]}><ClockHands /></group>
+      <mesh position={[0, 0, 0.045]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.01, 12]} />
+        <meshStandardMaterial color={palette.accent} />
+      </mesh>
+    </group>
+  );
+}
+
+// Small shelf label plate (engraved brass look).
+function ShelfLabel({ label, position }) {
+  return (
+    <group position={position}>
+      <Block args={[0.5, 0.06, 0.006]} color={palette.brass} metalness={0.7} roughness={0.35} castShadow={false} />
+      <Text font={FONT} position={[0, 0, 0.0045]} fontSize={0.032} color="#3b2a1a" anchorX="center" anchorY="middle" letterSpacing={0.16}>
+        {label}
+      </Text>
+    </group>
+  );
+}
+
+function FloatingShelf({ y, label, children }) {
+  return (
+    <group position={[0.1, y, -S + 0.2]}>
+      <Block args={[2.0, 0.06, 0.36]} color={palette.timber} roughness={0.55} map={woodAcross()} />
+      <ShelfLabel label={label} position={[0, -0.002, 0.184]} />
+      <group position={[0, 0.03, 0]}>{children}</group>
+    </group>
+  );
+}
+
+// Phone on a small stand, screen showing the Qline icon.
+function PhoneOnStand({ position, rotation }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <Block args={[0.14, 0.02, 0.1]} color={palette.steel} metalness={0.7} roughness={0.3} position={[0, 0.01, 0]} />
+      <group position={[0, 0.17, -0.01]} rotation={[-0.16, 0, 0]}>
+        <RoundedBox args={[0.17, 0.33, 0.016]} radius={0.02} smoothness={3} castShadow>
+          <meshStandardMaterial color="#141416" roughness={0.3} metalness={0.4} />
+        </RoundedBox>
+        <mesh position={[0, 0, 0.0085]}>
+          <planeGeometry args={[0.152, 0.31]} />
+          <meshBasicMaterial color="#0d1512" toneMapped={false} />
+        </mesh>
+        <Suspense fallback={null}>
+          <group position={[0, 0.02, 0.009]}><QlineMark size={0.11} /></group>
+        </Suspense>
+        <Text font={FONT} position={[0, -0.09, 0.01]} fontSize={0.022} color="#cfe9df" anchorX="center" anchorY="middle" letterSpacing={0.2}>QLINE</Text>
+      </group>
+    </group>
+  );
+}
+
+function GraduationCap({ position, rotation }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh castShadow position={[0, 0.045, 0]}>
+        <cylinderGeometry args={[0.085, 0.095, 0.09, 24]} />
+        <meshStandardMaterial color="#1b1b1d" roughness={0.75} />
+      </mesh>
+      <Block args={[0.3, 0.012, 0.3]} color="#1b1b1d" roughness={0.75} position={[0, 0.095, 0]} rotation={[0, Math.PI / 4, 0]} />
+      <mesh position={[0, 0.104, 0]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.01, 10]} />
+        <meshStandardMaterial color={palette.accent} />
+      </mesh>
+      {/* Tassel in SEAIT orange */}
+      <mesh position={[0.1, 0.06, 0.04]} rotation={[0, 0, 0.1]}>
+        <cylinderGeometry args={[0.006, 0.012, 0.08, 8]} />
+        <meshStandardMaterial color="#e2762f" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function GameController({ position, rotation }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <RoundedBox args={[0.3, 0.05, 0.15]} radius={0.024} smoothness={3} position={[0, 0.026, 0]} castShadow>
+        <meshStandardMaterial color="#2c2d31" roughness={0.5} />
+      </RoundedBox>
+      {[-1, 1].map((side) => (
+        <mesh key={side} castShadow position={[side * 0.12, 0.024, 0.05]} scale={[1, 0.6, 1.2]}>
+          <sphereGeometry args={[0.055, 16, 12]} />
+          <meshStandardMaterial color="#2c2d31" roughness={0.5} />
+        </mesh>
+      ))}
+      {[-0.06, 0.06].map((x) => (
+        <mesh key={x} position={[x, 0.058, 0.02]}>
+          <cylinderGeometry args={[0.018, 0.02, 0.016, 14]} />
+          <meshStandardMaterial color="#45474d" roughness={0.6} />
+        </mesh>
+      ))}
+      {[[0.1, -0.02, '#c4572e'], [0.125, 0.0, '#7f8b70'], [0.1, 0.02, '#d2a640'], [0.075, 0.0, '#5b86c9']].map(([x, z, color]) => (
+        <mesh key={color} position={[x, 0.054, z]}>
+          <sphereGeometry args={[0.008, 8, 6]} />
+          <meshStandardMaterial color={color} roughness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// Compact home server: the backend projects (APIs, MCP server) live here.
+function MiniServer({ position }) {
+  const { reducedMotion } = useRoom();
+  const leds = useRef([]);
+  useFrame(({ clock }) => {
+    leds.current.forEach((led, index) => {
+      if (led) led.emissiveIntensity = reducedMotion ? 1 : 0.6 + 0.8 * (Math.sin(clock.elapsedTime * (2 + index * 1.7) + index) > 0.2 ? 1 : 0);
+    });
+  });
+  return (
+    <group position={position}>
+      {[0, 1].map((unit) => (
+        <group key={unit} position={[0, 0.05 + unit * 0.095, 0]}>
+          <RoundedBox args={[0.3, 0.085, 0.24]} radius={0.01} smoothness={2} castShadow receiveShadow>
+            <meshStandardMaterial color="#cfd1d4" roughness={0.35} metalness={0.7} />
+          </RoundedBox>
+          <Block args={[0.2, 0.05, 0.004]} color="#1b1c1f" position={[-0.03, 0, 0.121]} castShadow={false} />
+          {[0, 1].map((led) => (
+            <mesh key={led} position={[0.1 + led * 0.025, 0, 0.123]}>
+              <circleGeometry args={[0.006, 10]} />
+              <meshStandardMaterial ref={(material) => { leds.current[unit * 2 + led] = material; }} color="#0b1a12" emissive={led ? '#e8a54b' : '#4fd19b'} emissiveIntensity={1} toneMapped={false} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -434,136 +824,108 @@ function DisplayWall() {
   const { goTo } = useRoom();
   return (
     <group>
-      {/* Name sign */}
-      <Interactive label="About me" onSelect={() => goTo('display')} position={[0.1, 2.88, -S + 0.06]} labelOffset={[0, 0.5, 0.1]}>
-        <RoundedBox args={[1.9, 0.62, 0.08]} radius={0.06} smoothness={3} castShadow>
-          <meshStandardMaterial color="#fff8ee" roughness={0.6} />
-        </RoundedBox>
-        <Text font={FONT} position={[0, 0.06, 0.05]} fontSize={0.27} color="#e2703a" anchorX="center" anchorY="middle" letterSpacing={0.06}>
-          JAZZ
+      {/* Name sign: dimensional lettering mounted off the wall */}
+      <Interactive label="About me" onSelect={() => goTo('display')} position={[0.1, 2.92, -S + 0.04]} labelOffset={[0, 0.45, 0.1]}>
+        <Text font={FONT} position={[0.012, 0.072, 0.0]} fontSize={0.25} color="#cfc5b6" anchorX="center" anchorY="middle" letterSpacing={0.1}>
+          JAZZ SAJONIA
         </Text>
-        <Text font={FONT_MEDIUM} position={[0, -0.17, 0.05]} fontSize={0.075} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.14}>
-          SOFTWARE BUILDER
+        <Text font={FONT} position={[0, 0.08, 0.02]} fontSize={0.25} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.1}>
+          JAZZ SAJONIA
         </Text>
+        <Block args={[0.32, 0.012, 0.01]} color={palette.accent} position={[0, -0.09, 0.015]} castShadow={false} />
+        <Text font={FONT_MEDIUM} position={[0, -0.17, 0.02]} fontSize={0.062} color="#5a5048" anchorX="center" anchorY="middle" letterSpacing={0.24}>
+          SOFTWARE BUILDER · AI & AUTOMATION
+        </Text>
+        {/* Invisible hit area so the whole sign is easy to click */}
+        <mesh position={[0, 0, 0.02]}>
+          <planeGeometry args={[2.1, 0.55]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
       </Interactive>
 
-      {/* Picture frames */}
-      {[
-        [1.62, 1.95, 0.5, 0.62, '#b9d7e8'],
-        [2.24, 2.06, 0.5, 0.4, '#f3c7b0'],
-        [2.24, 1.6, 0.5, 0.36, '#c9e3c4'],
-        [1.62, 1.38, 0.5, 0.36, '#e6d1f0'],
-      ].map(([x, y, w, h, art], index) => (
-        <group key={index} position={[x, y, -S + 0.04]}>
-          <Block args={[w, h, 0.05]} color={palette.timberDark} />
-          <mesh position={[0, 0, 0.03]}>
-            <planeGeometry args={[w - 0.09, h - 0.09]} />
-            <meshStandardMaterial color={art} roughness={0.9} />
-          </mesh>
-          <mesh position={[0.02, -0.02, 0.031]} rotation={[0, 0, index * 0.7]}>
-            <circleGeometry args={[Math.min(w, h) * 0.18, 16]} />
-            <meshStandardMaterial color="#fff6e6" roughness={0.9} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Wall clock */}
-      <group position={[-1.55, 2.62, -S + 0.05]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <cylinderGeometry args={[0.22, 0.22, 0.05, 28]} />
-          <meshStandardMaterial color={palette.timber} roughness={0.7} />
-        </mesh>
-        <mesh position={[0, 0, 0.03]}>
-          <circleGeometry args={[0.18, 28]} />
-          <meshStandardMaterial color="#fffaf1" roughness={0.8} />
-        </mesh>
-        <ClockHands />
-      </group>
-
-      {/* Floating shelves with labelled tool groups */}
-      {[
-        { y: 2.15, label: 'WEB · DATA' },
-        { y: 1.5, label: 'MOBILE · GAMES' },
-      ].map(({ y, label }) => (
-        <group key={label} position={[0.1, y, -S + 0.2]}>
-          <Block args={[2.0, 0.07, 0.38]} color={palette.timber} />
-          <Block args={[0.62, 0.11, 0.015]} color="#fff8ee" position={[0, -0.005, 0.2]} castShadow={false} />
-          <Text font={FONT} position={[0, -0.005, 0.21]} fontSize={0.05} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.12}>
-            {label}
-          </Text>
-        </group>
-      ))}
-      {/* Upper shelf: web tools as books and blocks */}
-      <group position={[0.1, 2.19, -S + 0.2]}>
-        <Book position={[-0.82, 0.21, 0]} color="#e98f6d" />
-        <Book position={[-0.72, 0.19, 0]} size={[0.08, 0.38, 0.28]} color="#8fb8de" />
-        <Book position={[-0.62, 0.2, 0]} size={[0.09, 0.4, 0.29]} color="#f2c86b" />
-        <Book position={[-0.5, 0.18, 0]} size={[0.08, 0.36, 0.27]} color="#b49ad8" tilt={-0.22} />
-        <RoundedBox args={[0.26, 0.26, 0.26]} radius={0.04} position={[0.1, 0.13, 0]} castShadow>
-          <meshStandardMaterial color="#61c3e8" roughness={0.6} />
-        </RoundedBox>
-        <RoundedBox args={[0.2, 0.2, 0.2]} radius={0.03} position={[0.42, 0.1, 0.02]} rotation={[0, 0.5, 0]} castShadow>
-          <meshStandardMaterial color="#f5d36a" roughness={0.6} />
-        </RoundedBox>
-        <Plant position={[0.78, 0, 0]} scale={0.62} pot="#f2b38f" />
-      </group>
-      {/* Lower shelf: a phone, a game controller and a trophy */}
-      <group position={[0.1, 1.54, -S + 0.2]}>
-        <RoundedBox args={[0.2, 0.36, 0.035]} radius={0.02} position={[-0.68, 0.19, -0.06]} rotation={[-0.18, 0.2, 0]} castShadow>
-          <meshStandardMaterial color="#2f3446" roughness={0.45} />
-        </RoundedBox>
-        <mesh position={[-0.68, 0.2, -0.035]} rotation={[-0.18, 0.2, 0]}>
-          <planeGeometry args={[0.16, 0.29]} />
-          <meshStandardMaterial color="#7ad3c0" emissive="#7ad3c0" emissiveIntensity={0.35} />
-        </mesh>
-        <group position={[-0.12, 0.07, 0.02]}>
-          <RoundedBox args={[0.42, 0.11, 0.2]} radius={0.05} castShadow>
-            <meshStandardMaterial color="#f07f62" roughness={0.55} />
-          </RoundedBox>
-          {[-0.13, 0.13].map((x) => (
-            <mesh key={x} position={[x, 0.065, 0]} castShadow>
-              <cylinderGeometry args={[0.035, 0.035, 0.03, 12]} />
-              <meshStandardMaterial color="#fff3e2" roughness={0.5} />
+      {/* Gallery wall: portrait, degree and the current flagship project */}
+      <GalleryFrame w={0.66} h={0.82} position={[1.66, 1.92, -S + 0.03]}>
+        {({ w, h }) => (
+          <Suspense fallback={<mesh><planeGeometry args={[w, h]} /><meshStandardMaterial color="#d9d4cc" /></mesh>}>
+            <PortraitPhoto w={w} h={h} />
+          </Suspense>
+        )}
+      </GalleryFrame>
+      <GalleryFrame w={0.62} h={0.47} mat={0.045} position={[2.42, 2.1, -S + 0.03]} color={palette.timberDark}>
+        {({ w, h }) => <Diploma w={w} h={h} />}
+      </GalleryFrame>
+      <GalleryFrame w={0.46} h={0.46} mat={0.04} position={[2.34, 1.55, -S + 0.03]}>
+        {({ w, h }) => (
+          <group>
+            <mesh>
+              <planeGeometry args={[w, h]} />
+              <meshBasicMaterial color="#0d1512" toneMapped={false} />
             </mesh>
-          ))}
-        </group>
-        <group position={[0.45, 0, 0]}>
-          <Block args={[0.18, 0.06, 0.14]} color={palette.timberDark} position={[0, 0.03, 0]} />
-          <mesh position={[0, 0.19, 0]} castShadow>
-            <cylinderGeometry args={[0.1, 0.045, 0.22, 16]} />
-            <meshStandardMaterial color="#e9b949" roughness={0.35} metalness={0.4} />
-          </mesh>
-        </group>
-        <Book position={[0.78, 0.17, 0]} size={[0.09, 0.34, 0.27]} color="#9cc59a" />
-        <Book position={[0.88, 0.16, 0]} size={[0.08, 0.32, 0.26]} color="#e7b0c4" />
-      </group>
-
-      {/* Low cabinet under the shelves */}
-      <group position={[0.1, 0, -S + 0.34]}>
-        <Block args={[2.1, 0.7, 0.62]} color="#f4e2c8" position={[0, 0.35, 0]} />
-        <Block args={[2.18, 0.06, 0.68]} color={palette.timber} position={[0, 0.73, 0]} />
-        {[-0.52, 0.52].map((x) => (
-          <group key={x} position={[x, 0.36, 0.315]}>
-            <Block args={[0.96, 0.54, 0.02]} color="#f9ecd8" castShadow={false} />
-            <Block args={[0.2, 0.035, 0.03]} color={palette.timberDark} position={[0, 0.15, 0.02]} castShadow={false} />
+            <Suspense fallback={null}><QlineMark size={w * 0.58} /></Suspense>
+            <Text font={FONT} position={[0, -h * 0.38, 0.003]} fontSize={0.028} color="#cfe9df" anchorX="center" anchorY="middle" letterSpacing={0.3}>QLINE · 2026</Text>
           </group>
+        )}
+      </GalleryFrame>
+
+      <WallClock />
+
+      {/* Upper shelf: web and data. Books are the languages and tools; the small server holds the APIs. */}
+      <FloatingShelf y={2.15} label="WEB · DATA">
+        <Book position={[-0.84, 0.2, 0]} size={[0.085, 0.4, 0.27]} color="#2f3e56" title="TYPESCRIPT" />
+        <Book position={[-0.75, 0.19, 0]} size={[0.08, 0.38, 0.26]} color="#7a3b33" title="REACT" />
+        <Book position={[-0.665, 0.2, 0]} size={[0.08, 0.4, 0.27]} color="#3f5a4a" title="NODE.JS" />
+        <Book position={[-0.58, 0.18, 0]} size={[0.08, 0.36, 0.25]} color="#c2ad8b" title="NEXT.JS" />
+        <Book position={[-0.47, 0.17, 0]} size={[0.08, 0.36, 0.26]} color="#3a3a3c" title="POSTGRES" tilt={-0.24} />
+        {/* Metal bookend */}
+        <group position={[-0.95, 0, 0]}>
+          <Block args={[0.012, 0.2, 0.16]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0, 0.1, 0]} />
+          <Block args={[0.08, 0.008, 0.16]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0.04, 0.004, 0]} />
+        </group>
+        <MiniServer position={[0.12, 0, -0.02]} />
+        <Plant position={[0.72, 0, 0]} scale={0.6} pot="#e9e3da" />
+      </FloatingShelf>
+
+      {/* Lower shelf: mobile and AI. A phone running Qline, a controller for the Godot game, my graduation cap. */}
+      <FloatingShelf y={1.5} label="MOBILE · AI">
+        <PhoneOnStand position={[-0.7, 0, -0.02]} rotation={[0, 0.18, 0]} />
+        <GameController position={[-0.16, 0, 0.02]} rotation={[0, -0.25, 0]} />
+        <GraduationCap position={[0.38, 0, -0.01]} rotation={[0, 0.4, 0]} />
+        <Book position={[0.78, 0.17, 0]} size={[0.085, 0.34, 0.26]} color="#556b4f" title="KOTLIN" />
+        <Book position={[0.87, 0.16, 0]} size={[0.08, 0.32, 0.25]} color="#3d5a80" title="FLUTTER" />
+      </FloatingShelf>
+
+      {/* Walnut credenza with slatted doors on black steel legs */}
+      <group position={[0.1, 0, -S + 0.34]}>
+        <Block args={[2.1, 0.56, 0.6]} color={palette.timber} roughness={0.55} map={woodAcross()} position={[0, 0.44, 0]} />
+        <Block args={[2.14, 0.035, 0.63]} color={palette.timberDark} roughness={0.5} map={woodAcross()} position={[0, 0.735, 0]} />
+        <Instances limit={64} castShadow={false}>
+          <boxGeometry args={[0.022, 0.48, 0.012]} />
+          <meshStandardMaterial color={palette.timberDark} roughness={0.55} />
+          {Array.from({ length: 60 }, (_, slat) => (
+            <Instance key={slat} position={[-0.99 + slat * 0.0336, 0.44, 0.305]} />
+          ))}
+        </Instances>
+        <Block args={[0.006, 0.5, 0.012]} color="#2a1c12" position={[0, 0.44, 0.31]} castShadow={false} />
+        {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([x, z]) => (
+          <Block key={`${x}${z}`} args={[0.035, 0.16, 0.035]} color={palette.metal} metalness={0.5} roughness={0.4} position={[x * 0.98, 0.08, z * 0.25]} />
         ))}
-        {/* Lava lamp and a record */}
-        <group position={[0.75, 0.76, 0]}>
-          <mesh castShadow position={[0, 0.06, 0]}>
-            <cylinderGeometry args={[0.06, 0.08, 0.12, 14]} />
-            <meshStandardMaterial color="#c9a07a" roughness={0.5} metalness={0.2} />
-          </mesh>
-          <mesh position={[0, 0.25, 0]}>
-            <cylinderGeometry args={[0.035, 0.06, 0.26, 14]} />
-            <meshStandardMaterial color="#ff8c5a" emissive="#ff7a45" emissiveIntensity={0.9} roughness={0.3} />
-          </mesh>
+        {/* Bookshelf speaker and a short stack of records */}
+        <group position={[0.72, 0.755, -0.02]}>
+          <RoundedBox args={[0.2, 0.32, 0.22]} radius={0.012} smoothness={2} position={[0, 0.16, 0]} castShadow>
+            <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAlong()} />
+          </RoundedBox>
+          <Block args={[0.17, 0.29, 0.004]} color="#2b2a29" roughness={0.95} map={fabricMap()} position={[0, 0.16, 0.111]} castShadow={false} />
+        </group>
+        <group position={[0.32, 0.755, 0.02]}>
+          {[0, 1, 2].map((record) => (
+            <Block key={record} args={[0.31, 0.012, 0.31]} color={['#1d1d1f', '#c4572e', '#e8e0d4'][record]} roughness={0.6} position={[0, 0.006 + record * 0.013, 0]} rotation={[0, record * 0.12, 0]} />
+          ))}
         </group>
         <SpinningRecord />
       </group>
 
-      {/* Tall floor plant in the right corner */}
-      <WigglePlant position={[2.55, 0, -2.45]} scale={1.55} pot="#d9896a" />
+      {/* Tall plant in the right corner */}
+      <WigglePlant position={[2.55, 0, -2.45]} scale={1.35} pot="#2f2e2c" kind="tall" />
     </group>
   );
 }
@@ -572,71 +934,134 @@ function DisplayWall() {
 /* Computer / workstation wall (left wall, x = -S)                      */
 /* ------------------------------------------------------------------ */
 
-function drawMonitorScreen(canvas, project, index, total) {
+const screenImages = {};
+function loadScreenImage(src, onLoad) {
+  if (!src || typeof Image === 'undefined') return null;
+  if (!screenImages[src]) {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = src;
+    screenImages[src] = image;
+  }
+  const image = screenImages[src];
+  if (!image.complete) image.addEventListener('load', onLoad, { once: true });
+  return image.complete && image.naturalWidth ? image : null;
+}
+
+function roundRect(context, x, y, w, h, r) {
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
+}
+
+function drawMonitorScreen(canvas, project, index, total, image) {
   const context = canvas.getContext('2d');
   const { width, height } = canvas;
-  const gradient = context.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#1f2638');
-  gradient.addColorStop(1, '#2d3550');
-  context.fillStyle = gradient;
+  context.fillStyle = '#121315';
+  context.fillRect(0, 0, width, height);
+  // Soft accent glow in the corner, like a product page hero.
+  const glow = context.createRadialGradient(width * 0.82, height * 0.55, 10, width * 0.82, height * 0.55, width * 0.55);
+  glow.addColorStop(0, `${project.color}55`);
+  glow.addColorStop(1, 'rgba(18, 19, 21, 0)');
+  context.fillStyle = glow;
   context.fillRect(0, 0, width, height);
 
-  // Window chrome
-  context.fillStyle = 'rgba(255,255,255,0.08)';
-  context.fillRect(0, 0, width, 54);
-  ['#ff7b6b', '#ffcb5c', '#62d58e'].forEach((color, dot) => {
+  // Browser-style top bar
+  context.fillStyle = '#1c1d20';
+  context.fillRect(0, 0, width, 50);
+  ['#3a3b3f', '#3a3b3f', '#3a3b3f'].forEach((color, dot) => {
     context.fillStyle = color;
     context.beginPath();
-    context.arc(36 + dot * 34, 27, 10, 0, Math.PI * 2);
+    context.arc(32 + dot * 26, 25, 7, 0, Math.PI * 2);
     context.fill();
   });
-  context.fillStyle = 'rgba(255,255,255,0.55)';
-  context.font = '500 22px "Space Grotesk", system-ui, sans-serif';
+  context.fillStyle = '#26272b';
+  roundRect(context, 130, 13, 420, 24, 12);
+  context.fill();
+  context.fillStyle = 'rgba(255,255,255,0.45)';
+  context.font = '500 15px "Space Grotesk", system-ui, sans-serif';
+  context.textAlign = 'left';
+  context.fillText(`jazz.dev/projects/${project.slug}`, 148, 30);
   context.textAlign = 'right';
-  context.fillText(`${index + 1} / ${total}`, width - 32, 35);
+  context.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, width - 28, 31);
 
-  // Accent artwork
-  context.fillStyle = project.color;
-  context.globalAlpha = 0.9;
-  context.beginPath();
-  context.arc(width - 170, height - 150, 120, 0, Math.PI * 2);
-  context.fill();
-  context.globalAlpha = 0.35;
-  context.beginPath();
-  context.arc(width - 300, height - 70, 80, 0, Math.PI * 2);
-  context.fill();
-  context.globalAlpha = 1;
-
-  // Text
+  // Left column: type, title, stack
+  const left = 56;
   context.textAlign = 'left';
   context.fillStyle = project.color;
-  context.font = '500 26px "Space Grotesk", system-ui, sans-serif';
-  context.fillText(project.type.toUpperCase(), 56, 140);
-  context.fillStyle = '#fff6ea';
-  // Shrink long titles and stacks so they fit the screen.
-  let titleSize = 92;
+  context.font = '600 20px "Space Grotesk", system-ui, sans-serif';
+  context.fillText(project.type.toUpperCase(), left, 130);
+  context.fillStyle = '#f4f1ec';
+  const columnWidth = image ? 520 : width - 2 * left;
+  let titleSize = 78;
   context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
-  while (titleSize > 52 && context.measureText(project.title).width > width - 104) {
+  while (titleSize > 40 && context.measureText(project.title).width > columnWidth) {
     titleSize -= 4;
     context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
   }
-  context.fillText(project.title, 52, 240);
-  context.fillStyle = 'rgba(255,246,234,0.7)';
-  let stackSize = 26;
-  context.font = `500 ${stackSize}px "Space Grotesk", system-ui, sans-serif`;
-  while (stackSize > 18 && context.measureText(project.stack.join(' · ')).width > width - 112) {
-    stackSize -= 2;
-    context.font = `500 ${stackSize}px "Space Grotesk", system-ui, sans-serif`;
-  }
-  context.fillText(project.stack.join(' · '), 56, 300);
-
-  // Fake UI rows
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  [380, 430, 480].forEach((y, row) => {
-    context.fillRect(56, y, 420 - row * 90, 22);
+  context.fillText(project.title, left - 3, 130 + titleSize + 18);
+  // Stack as pills
+  let x = left;
+  let y = 130 + titleSize + 62;
+  context.font = '500 18px "Space Grotesk", system-ui, sans-serif';
+  project.stack.forEach((item) => {
+    const w = context.measureText(item).width + 26;
+    if (x + w > left + columnWidth) { x = left; y += 42; }
+    context.fillStyle = 'rgba(255,255,255,0.07)';
+    roundRect(context, x, y, w, 32, 16);
+    context.fill();
+    context.fillStyle = 'rgba(244,241,236,0.8)';
+    context.fillText(item, x + 13, y + 22);
+    x += w + 10;
   });
+  // Primary button + secondary link
+  y += 76;
   context.fillStyle = project.color;
-  context.fillRect(56, 540, 160, 40);
+  roundRect(context, left, y, 168, 46, 23);
+  context.fill();
+  context.fillStyle = '#121315';
+  context.font = '700 18px "Space Grotesk", system-ui, sans-serif';
+  context.fillText('View project', left + 26, y + 29);
+  context.fillStyle = 'rgba(244,241,236,0.6)';
+  context.font = '500 18px "Space Grotesk", system-ui, sans-serif';
+  context.fillText(project.github ? 'Source on GitHub' : 'Private repo', left + 192, y + 29);
+
+  // Right column: real artwork where available, otherwise an abstract product tile.
+  const panelX = width - 360;
+  const panelY = 110;
+  const panelW = 300;
+  const panelH = 300;
+  if (image) {
+    context.fillStyle = '#0d1512';
+    roundRect(context, panelX, panelY, panelW, panelH, 28);
+    context.fill();
+    const size = 210;
+    context.drawImage(image, panelX + (panelW - size) / 2, panelY + (panelH - size) / 2, size, size);
+  } else {
+    context.globalAlpha = 0.9;
+    context.fillStyle = project.color;
+    roundRect(context, panelX + 40, panelY + 40, panelW - 80, panelH - 80, 36);
+    context.fill();
+    context.globalAlpha = 0.25;
+    roundRect(context, panelX, panelY, panelW, panelH, 44);
+    context.fill();
+    context.globalAlpha = 1;
+    context.fillStyle = '#121315';
+    context.font = '700 96px "Space Grotesk", system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.fillText(project.title.charAt(0), panelX + panelW / 2, panelY + panelH / 2 + 34);
+    context.textAlign = 'left';
+  }
+  // Progress dots along the bottom
+  for (let dot = 0; dot < total; dot += 1) {
+    context.fillStyle = dot === index ? project.color : 'rgba(255,255,255,0.18)';
+    roundRect(context, left + dot * 26, height - 40, dot === index ? 20 : 10, 6, 3);
+    context.fill();
+  }
 }
 
 function MonitorScreen({ project, index }) {
@@ -660,7 +1085,7 @@ function MonitorScreen({ project, index }) {
     let cancelled = false;
     const draw = () => {
       if (cancelled) return;
-      drawMonitorScreen(canvas, project, index, projects.length);
+      drawMonitorScreen(canvas, project, index, projects.length, loadScreenImage(project.screen, draw));
       texture.needsUpdate = true;
     };
     draw();
@@ -671,169 +1096,245 @@ function MonitorScreen({ project, index }) {
   useEffect(() => () => texture?.dispose(), [texture]);
 
   return (
-    <mesh position={[0, 0, 0.041]}>
-      <planeGeometry args={[1.2, 0.75]} />
+    <mesh position={[0, 0.01, 0.036]}>
+      <planeGeometry args={[1.22, 0.7625]} />
       <meshBasicMaterial map={texture} toneMapped={false} />
     </mesh>
+  );
+}
+
+// Linen pinboard above the desk with index cards for the projects I am shipping now.
+const PINNED = [
+  { title: 'QLINE', note: 'AI OS · v1.12', color: '#3fbf9b' },
+  { title: 'CONNECTOR', note: 'MCP · OAuth 2.1', color: '#c98b4f' },
+  { title: 'TASKFLOW', note: 'Teams · realtime', color: '#7c7fd8' },
+  { title: 'EDGEFLOW', note: 'Android · sidebar', color: '#2fb5a8' },
+  { title: 'FLOWPILOT', note: 'Workflows · AI', color: '#6c8fd6' },
+];
+
+function ProjectBoard() {
+  const { goTo } = useRoom();
+  return (
+    <Interactive label="Projects I’m shipping" onSelect={() => goTo('computer')} position={[-S + 0.05, 2.62, -0.3]} rotation={[0, Math.PI / 2, 0]} labelOffset={[0, 0.6, 0.1]}>
+      {/* Walnut frame and linen board */}
+      <Block args={[2.3, 0.86, 0.04]} color={palette.timber} roughness={0.55} map={woodAcross()} />
+      <Block args={[2.2, 0.76, 0.012]} color="#d9d1c3" roughness={0.98} map={fabricMap()} position={[0, 0, 0.022]} castShadow={false} />
+      <Text font={FONT} position={[-0.98, 0.29, 0.032]} fontSize={0.05} color={palette.ink} anchorX="left" anchorY="middle" letterSpacing={0.18}>
+        NOW SHIPPING
+      </Text>
+      <Block args={[0.14, 0.008, 0.004]} color={palette.accent} position={[-0.91, 0.25, 0.031]} castShadow={false} />
+      {PINNED.map((card, index) => {
+        const x = -0.86 + index * 0.43;
+        const tilt = [0.04, -0.03, 0.025, -0.04, 0.02][index];
+        return (
+          <group key={card.title} position={[x, -0.06, 0.032]} rotation={[0, 0, tilt]}>
+            <Block args={[0.36, 0.42, 0.004]} color="#fbfaf7" roughness={0.9} castShadow />
+            <Block args={[0.36, 0.05, 0.002]} color={card.color} position={[0, 0.185, 0.003]} castShadow={false} />
+            <Text font={FONT} position={[-0.15, 0.08, 0.004]} fontSize={0.042} color={palette.ink} anchorX="left" anchorY="middle" letterSpacing={0.04}>
+              {card.title}
+            </Text>
+            <Text font={FONT_MEDIUM} position={[-0.15, 0.02, 0.004]} fontSize={0.026} color="#6b6058" anchorX="left" anchorY="middle">
+              {card.note}
+            </Text>
+            {[0, 1, 2].map((line) => (
+              <Block key={line} args={[0.27 - line * 0.06, 0.008, 0.001]} color="#d8d2c8" position={[-0.015 - line * 0.03, -0.05 - line * 0.045, 0.003]} castShadow={false} receiveShadow={false} />
+            ))}
+            <mesh position={[0, 0.2, 0.012]}>
+              <sphereGeometry args={[0.014, 10, 8]} />
+              <meshStandardMaterial color={index % 2 ? palette.accent : palette.ink} roughness={0.35} />
+            </mesh>
+          </group>
+        );
+      })}
+    </Interactive>
+  );
+}
+
+function OfficeChair() {
+  const fabric = '#2f3033';
+  return (
+    <group position={[-S + 1.3, 0, -0.3]} rotation={[0, -0.25, 0]}>
+      {/* Seat */}
+      <RoundedBox args={[0.56, 0.09, 0.54]} radius={0.04} smoothness={3} position={[0, 0.58, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color={fabric} roughness={0.9} map={fabricMap()} />
+      </RoundedBox>
+      {/* Mesh back on a curved frame */}
+      <group position={[0.27, 0.98, 0]} rotation={[0, 0, -0.1]}>
+        <RoundedBox args={[0.06, 0.62, 0.5]} radius={0.03} smoothness={3} castShadow>
+          <meshStandardMaterial color="#1f2022" roughness={0.6} />
+        </RoundedBox>
+        <Block args={[0.012, 0.54, 0.42]} color="#3c3d41" roughness={0.95} map={fabricMap()} position={[-0.03, 0, 0]} castShadow={false} />
+      </group>
+      <Block args={[0.05, 0.26, 0.08]} color="#1f2022" position={[0.27, 0.69, 0]} />
+      {/* Armrests */}
+      {[-1, 1].map((side) => (
+        <group key={side} position={[0.02, 0, side * 0.29]}>
+          <Block args={[0.04, 0.2, 0.04]} color="#1f2022" position={[0.05, 0.72, 0]} />
+          <RoundedBox args={[0.3, 0.035, 0.07]} radius={0.015} smoothness={2} position={[0.0, 0.83, 0]} castShadow>
+            <meshStandardMaterial color="#1f2022" roughness={0.6} />
+          </RoundedBox>
+        </group>
+      ))}
+      {/* Gas lift and five-star base with casters */}
+      <mesh position={[0, 0.34, 0]} castShadow>
+        <cylinderGeometry args={[0.03, 0.03, 0.42, 14]} />
+        <meshStandardMaterial color="#c9cbd0" roughness={0.2} metalness={0.9} />
+      </mesh>
+      {[0, 1, 2, 3, 4].map((leg) => {
+        const angle = (leg / 5) * Math.PI * 2;
+        return (
+          <group key={leg} rotation={[0, -angle, 0]}>
+            <Block args={[0.32, 0.035, 0.05]} color="#1f2022" roughness={0.5} position={[0.16, 0.08, 0]} />
+            <mesh position={[0.31, 0.035, 0]} castShadow>
+              <sphereGeometry args={[0.035, 12, 10]} />
+              <meshStandardMaterial color="#141416" roughness={0.4} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function Mug({ position, color = palette.accent, rotation = 0 }) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <mesh castShadow>
+        <cylinderGeometry args={[0.05, 0.046, 0.11, 24]} />
+        <meshStandardMaterial color={color} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.052, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.044, 20]} />
+        <meshStandardMaterial color="#3b2416" roughness={0.2} />
+      </mesh>
+      <mesh position={[0.058, 0, 0]} castShadow>
+        <torusGeometry args={[0.028, 0.008, 8, 16]} />
+        <meshStandardMaterial color={color} roughness={0.35} />
+      </mesh>
+    </group>
   );
 }
 
 function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNext }) {
   const { goTo, nightRef } = useRoom();
   const glass = useRef();
-  const dayGlass = useMemo(() => new THREE.Color('#ffd59a'), []);
-  const nightGlass = useMemo(() => new THREE.Color('#3b4f9a'), []);
+  const dayGlass = useMemo(() => new THREE.Color('#f6e2c2'), []);
+  const nightGlass = useMemo(() => new THREE.Color('#33457e'), []);
   useFrame(() => {
     if (!glass.current) return;
     const night = nightRef.current.value;
     glass.current.emissive.copy(dayGlass).lerp(nightGlass, night);
-    glass.current.color.set(night > 0.5 ? '#2a3768' : '#ffe3b3');
-    glass.current.emissiveIntensity = THREE.MathUtils.lerp(0.75, 0.6, night);
+    glass.current.color.set(night > 0.5 ? '#26335e' : '#f8ead4');
+    glass.current.emissiveIntensity = THREE.MathUtils.lerp(0.7, 0.6, night);
   });
   const deskX = -S + 0.42; // centre of the desk depth
   return (
     <group>
       {/* Window toward the front of the wall */}
       <group position={[-S + 0.03, 2.05, 1.95]} rotation={[0, Math.PI / 2, 0]}>
-        <Block args={[1.3, 1.25, 0.08]} color={palette.timber} />
+        <Block args={[1.3, 1.25, 0.08]} color={palette.timber} roughness={0.55} map={woodAlong()} />
         <mesh position={[0, 0, 0.045]}>
           <planeGeometry args={[1.12, 1.07]} />
-          <meshStandardMaterial ref={glass} color="#ffe3b3" emissive="#ffd59a" emissiveIntensity={0.75} roughness={0.4} />
+          <meshStandardMaterial ref={glass} color="#f8ead4" emissive="#f6e2c2" emissiveIntensity={0.7} roughness={0.4} />
         </mesh>
-        <Block args={[0.05, 1.07, 0.04]} color={palette.timber} position={[0, 0, 0.06]} castShadow={false} />
-        <Block args={[1.12, 0.05, 0.04]} color={palette.timber} position={[0, 0, 0.06]} castShadow={false} />
-        <Block args={[1.45, 0.07, 0.22]} color={palette.timberDark} position={[0, -0.66, 0.1]} />
-        <Plant position={[0.42, -0.62, 0.12]} scale={0.5} pot="#f2b38f" />
+        <Block args={[0.035, 1.07, 0.04]} color={palette.timberDark} position={[0, 0, 0.06]} castShadow={false} />
+        <Block args={[1.12, 0.035, 0.04]} color={palette.timberDark} position={[0, 0, 0.06]} castShadow={false} />
+        <Block args={[1.45, 0.06, 0.22]} color={palette.timberDark} roughness={0.5} map={woodAcross()} position={[0, -0.66, 0.1]} />
+        <Plant position={[0.42, -0.63, 0.12]} scale={0.48} pot="#e9e3da" />
       </group>
 
-      {/* Pegboard shelf with a projects plaque */}
-      <group position={[-S + 0.05, 2.62, -0.3]} rotation={[0, Math.PI / 2, 0]}>
-        <Block args={[2.3, 0.8, 0.04]} color="#efd2ac" />
-        <Instances limit={44}>
-          <circleGeometry args={[0.018, 8]} />
-          <meshBasicMaterial color="#c9a57c" />
-          {Array.from({ length: 44 }, (_, hole) => (
-            <Instance key={hole} position={[-1.0 + (hole % 11) * 0.2, -0.3 + Math.floor(hole / 11) * 0.2, 0.021]} />
-          ))}
-        </Instances>
-        <RoundedBox args={[0.82, 0.24, 0.04]} radius={0.04} position={[-0.55, 0.12, 0.05]} castShadow>
-          <meshStandardMaterial color="#9b7be0" roughness={0.6} />
-        </RoundedBox>
-        <Text font={FONT} position={[-0.55, 0.12, 0.075]} fontSize={0.1} color="#ffffff" anchorX="center" anchorY="middle" letterSpacing={0.1}>
-          PROJECTS
-        </Text>
-        <Block args={[0.9, 0.05, 0.2]} color={palette.timber} position={[0.55, -0.2, 0.1]} />
-        <Book position={[0.25, -0.03, 0.1]} size={[0.07, 0.3, 0.18]} color="#8fb8de" />
-        <Book position={[0.33, -0.04, 0.1]} size={[0.07, 0.28, 0.18]} color="#e98f6d" />
-        <Book position={[0.41, -0.05, 0.1]} size={[0.06, 0.26, 0.17]} color="#f2c86b" tilt={-0.2} />
-        <RoundedBox args={[0.16, 0.16, 0.16]} radius={0.03} position={[0.78, -0.09, 0.1]} castShadow>
-          <meshStandardMaterial color="#7cc9a0" roughness={0.6} />
-        </RoundedBox>
-      </group>
+      <ProjectBoard />
 
-      {/* Desk */}
+      {/* Desk: walnut top on black steel frame, with a drawer pedestal */}
       <group position={[deskX, 0, -0.3]}>
-        <Block args={[0.86, 0.07, 2.5]} color={palette.timber} position={[0, 0.96, 0]} />
-        {/* Drawer unit */}
+        <Block args={[0.86, 0.05, 2.5]} color={palette.timber} roughness={0.5} map={woodAlong()} position={[0, 0.965, 0]} />
         <group position={[0, 0, 0.82]}>
-          <Block args={[0.78, 0.92, 0.72]} color="#f6e8d3" position={[0, 0.46, 0]} />
-          {[0.68, 0.24].map((y) => (
-            <group key={y} position={[0.395, y, 0]}>
-              <Block args={[0.02, 0.36, 0.64]} color="#fbf0de" castShadow={false} />
-              <Block args={[0.03, 0.035, 0.2]} color={palette.timberDark} position={[0.02, 0.1, 0]} castShadow={false} />
+          <Block args={[0.74, 0.9, 0.7]} color="#e9e4dc" roughness={0.6} position={[0, 0.47, 0]} />
+          {[0.72, 0.43, 0.16].map((y, drawer) => (
+            <group key={y} position={[0.372, y, 0]}>
+              <Block args={[0.01, drawer === 2 ? 0.24 : 0.25, 0.64]} color="#f1ede6" roughness={0.6} castShadow={false} />
+              <Block args={[0.02, 0.016, 0.22]} color={palette.metal} metalness={0.6} roughness={0.35} position={[0.012, 0.08, 0]} castShadow={false} />
             </group>
           ))}
         </group>
-        {/* Legs */}
-        {[[-0.36, -1.18], [0.36, -1.18]].map(([x, z]) => (
-          <Block key={`${x}${z}`} args={[0.07, 0.92, 0.07]} color="#f6e8d3" position={[x, 0.46, z]} />
+        {/* Steel frame: two legs and a crossbar */}
+        {[-1.18].map((z) => (
+          <group key={z} position={[0, 0, z]}>
+            <Block args={[0.04, 0.94, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.36, 0.47, 0]} />
+            <Block args={[0.04, 0.94, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0.36, 0.47, 0]} />
+            <Block args={[0.76, 0.04, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0, 0.03, 0]} />
+          </group>
         ))}
+        <Block args={[0.04, 0.05, 1.6]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.3, 0.92, -0.38]} castShadow={false} />
 
-        {/* Monitor */}
-        <group position={[-0.18, 1.0, -0.05]} rotation={[0, Math.PI / 2, 0]}>
-          <Block args={[0.34, 0.03, 0.22]} color="#e9ddcd" position={[0, 0.015, 0]} roughness={0.5} />
-          <Block args={[0.08, 0.32, 0.06]} color="#e9ddcd" position={[0, 0.18, -0.02]} roughness={0.5} />
-          <Interactive label={controlsVisible ? 'Next project' : 'See my projects'} onSelect={() => (controlsVisible ? onNext() : goTo('computer'))} position={[0, 0.66, 0.02]} labelOffset={[0, 0.6, 0.05]}>
-            <RoundedBox args={[1.32, 0.86, 0.07]} radius={0.04} smoothness={3} castShadow>
-              <meshStandardMaterial color="#efe4d6" roughness={0.45} />
+        {/* Monitor: slim black bezel on an aluminium stand */}
+        <group position={[-0.2, 0.99, -0.05]} rotation={[0, Math.PI / 2, 0]}>
+          <Block args={[0.3, 0.012, 0.2]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.006, 0]} />
+          <Block args={[0.06, 0.34, 0.025]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.18, -0.03]} />
+          <Interactive label={controlsVisible ? 'Next project' : 'See my projects'} onSelect={() => (controlsVisible ? onNext() : goTo('computer'))} position={[0, 0.66, 0.0]} labelOffset={[0, 0.6, 0.05]}>
+            <RoundedBox args={[1.28, 0.82, 0.05]} radius={0.018} smoothness={3} castShadow>
+              <meshStandardMaterial color="#17181a" roughness={0.35} metalness={0.3} />
             </RoundedBox>
             <MonitorScreen project={project} index={projectIndex} />
-            {/* Webcam */}
-            <mesh position={[0, 0.405, 0.04]}>
-              <sphereGeometry args={[0.018, 10, 8]} />
-              <meshStandardMaterial color="#29303f" roughness={0.3} />
-            </mesh>
+            <Block args={[0.16, 0.008, 0.006]} color="#2a2b2f" position={[0, -0.395, 0.026]} castShadow={false} />
           </Interactive>
           {/* Arrow controls anchored beside the monitor */}
-          <Html position={[-1.36, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[-1.32, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onPrevious} aria-label="Previous project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowLeft size={22} weight="bold" />
             </button>
           </Html>
-          <Html position={[1.44, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[1.4, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onNext} aria-label="Next project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowRight size={22} weight="bold" />
             </button>
           </Html>
         </group>
 
-        {/* Keyboard */}
-        <group position={[0.16, 0.995, -0.05]} rotation={[0, Math.PI / 2, 0]}>
-          <Block args={[0.82, 0.03, 0.27]} color="#f7f0e6" roughness={0.55} />
+        {/* Keyboard: aluminium case, charcoal keycaps, one accent key */}
+        <group position={[0.16, 0.99, -0.05]} rotation={[0, Math.PI / 2, 0]}>
+          <RoundedBox args={[0.82, 0.022, 0.27]} radius={0.008} smoothness={2} castShadow receiveShadow>
+            <meshStandardMaterial color="#c4c6cb" roughness={0.3} metalness={0.7} />
+          </RoundedBox>
           <Instances limit={48}>
-            <boxGeometry args={[0.05, 0.016, 0.045]} />
-            <meshStandardMaterial roughness={0.6} />
+            <boxGeometry args={[0.052, 0.014, 0.046]} />
+            <meshStandardMaterial roughness={0.55} />
             {Array.from({ length: 48 }, (_, key) => {
               const row = Math.floor(key / 12);
               const column = key % 12;
-              return <Instance key={key} position={[-0.355 + column * 0.0645, 0.022, -0.09 + row * 0.06]} color={(row + column) % 9 === 0 ? '#f0a274' : '#e3d6c6'} />;
+              return <Instance key={key} position={[-0.355 + column * 0.0645, 0.016, -0.09 + row * 0.06]} color={key === 0 ? palette.accent : '#2c2d31'} />;
             })}
           </Instances>
         </group>
-        {/* Mouse and pad */}
-        <Block args={[0.32, 0.008, 0.26]} color="#9b7be0" position={[0.14, 0.997, 0.62]} castShadow={false} roughness={0.9} />
-        <mesh position={[0.14, 1.025, 0.62]} scale={[0.07, 0.035, 0.1]} castShadow>
-          <sphereGeometry args={[1, 16, 12]} />
-          <meshStandardMaterial color="#f7f0e6" roughness={0.45} />
+        {/* Felt desk mat, mouse */}
+        <Block args={[0.4, 0.004, 1.2]} color="#3a3b3e" roughness={0.98} map={fabricMap()} position={[0.12, 0.992, 0.05]} castShadow={false} />
+        <mesh position={[0.14, 1.012, 0.55]} scale={[0.062, 0.03, 0.1]} castShadow>
+          <sphereGeometry args={[1, 20, 14]} />
+          <meshStandardMaterial color="#1f2022" roughness={0.35} />
         </mesh>
-        {/* Speakers */}
-        {[0.75].map((z) => (
-          <group key={z} position={[-0.2, 1.0, z]}>
-            <RoundedBox args={[0.2, 0.32, 0.2]} radius={0.03} position={[0, 0.16, 0]} castShadow>
-              <meshStandardMaterial color="#f2b7c4" roughness={0.6} />
-            </RoundedBox>
-            <mesh position={[0.101, 0.2, 0]} rotation={[0, Math.PI / 2, 0]}>
-              <circleGeometry args={[0.06, 18]} />
-              <meshStandardMaterial color="#3a2f35" roughness={0.6} />
-            </mesh>
-            <mesh position={[0.101, 0.07, 0]} rotation={[0, Math.PI / 2, 0]}>
-              <circleGeometry args={[0.03, 14]} />
-              <meshStandardMaterial color="#3a2f35" roughness={0.6} />
-            </mesh>
-          </group>
-        ))}
-        {/* Front-facing PC where the lamp used to be */}
+        {/* Studio monitor speaker */}
+        <group position={[-0.22, 0.99, 0.72]}>
+          <RoundedBox args={[0.2, 0.3, 0.2]} radius={0.015} smoothness={2} position={[0, 0.15, 0]} castShadow>
+            <meshStandardMaterial color="#1f2022" roughness={0.55} />
+          </RoundedBox>
+          {[[0.19, 0.06], [0.07, 0.03]].map(([y, r]) => (
+            <group key={y} position={[0.101, y, 0]} rotation={[0, Math.PI / 2, 0]}>
+              <mesh>
+                <circleGeometry args={[r, 24]} />
+                <meshStandardMaterial color="#121214" roughness={0.7} />
+              </mesh>
+              <mesh position={[0, 0, 0.001]}>
+                <ringGeometry args={[r - 0.008, r, 24]} />
+                <meshStandardMaterial color={palette.steel} metalness={0.8} roughness={0.3} />
+              </mesh>
+            </group>
+          ))}
+        </group>
         <DeskPc />
-        {/* Mug */}
-        <mesh position={[0.27, 1.05, -0.6]} castShadow>
-          <cylinderGeometry args={[0.055, 0.05, 0.11, 14]} />
-          <meshStandardMaterial color="#7cc9a0" roughness={0.6} />
-        </mesh>
+        <Mug position={[0.27, 1.045, -0.62]} color="#e8e2d8" rotation={0.6} />
       </group>
 
-      {/* Chair */}
-      <group position={[-S + 1.3, 0, -0.3]} rotation={[0, -0.25, 0]}>
-        <RoundedBox args={[0.58, 0.1, 0.58]} radius={0.04} position={[0, 0.6, 0]} castShadow>
-          <meshStandardMaterial color="#f6c453" roughness={0.75} />
-        </RoundedBox>
-        <RoundedBox args={[0.1, 0.62, 0.54]} radius={0.04} position={[0.29, 0.98, 0]} rotation={[0, 0, -0.08]} castShadow>
-          <meshStandardMaterial color="#f6c453" roughness={0.75} />
-        </RoundedBox>
-        <Block args={[0.06, 0.5, 0.06]} color="#f2ece4" position={[0, 0.3, 0]} />
-        {[0, 1, 2, 3, 4].map((leg) => (
-          <Block key={leg} args={[0.32, 0.04, 0.05]} color="#f2ece4" position={[Math.cos((leg / 5) * Math.PI * 2) * 0.15, 0.05, Math.sin((leg / 5) * Math.PI * 2) * 0.15]} rotation={[0, -(leg / 5) * Math.PI * 2, 0]} />
-        ))}
-      </group>
+      <OfficeChair />
     </group>
   );
 }
@@ -853,12 +1354,16 @@ function NotesTable() {
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]} receiveShadow>
         <ringGeometry args={[1.18, 1.24, 48]} />
-        <meshStandardMaterial color="#fbe3a2" roughness={0.95} />
+        <meshStandardMaterial color="#b9a888" roughness={0.95} />
       </mesh>
       {/* Round low table */}
       <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.72, 0.72, 0.07, 40]} />
-        <meshStandardMaterial color="#f3dcbb" roughness={0.7} />
+        <cylinderGeometry args={[0.72, 0.72, 0.06, 48]} />
+        <meshStandardMaterial color="#cfa77c" roughness={0.55} map={woodAcross()} />
+      </mesh>
+      <mesh position={[0, 0.468, 0]} castShadow>
+        <cylinderGeometry args={[0.725, 0.7, 0.02, 48]} />
+        <meshStandardMaterial color={palette.timberDark} roughness={0.55} />
       </mesh>
       {[0, 1, 2].map((leg) => {
         const angle = (leg / 3) * Math.PI * 2 + 0.4;
@@ -871,6 +1376,7 @@ function NotesTable() {
       })}
       {/* Open notebook */}
       <Interactive label="How I build" onSelect={() => goTo('notes')} position={[-0.2, 0.54, -0.02]} rotation={[0, 0.35, 0]} labelOffset={[0, 0.35, 0]}>
+        <Block args={[0.72, 0.012, 0.47]} color="#6b3f28" roughness={0.75} position={[0, -0.012, 0]} />
         {[-0.17, 0.17].map((x, side) => (
           <group key={x} position={[x, 0, 0]} rotation={[0, 0, side ? -0.05 : 0.05]}>
             <Block args={[0.33, 0.02, 0.44]} color="#fffaf0" roughness={0.9} />
@@ -879,16 +1385,16 @@ function NotesTable() {
             ))}
           </group>
         ))}
-        <Text font={FONT} position={[-0.17, 0.024, -0.03]} rotation={[-Math.PI / 2, 0, 0.05]} fontSize={0.045} color="#e2703a" anchorX="center" anchorY="middle" maxWidth={0.28} textAlign="center">
-          IDEAS
+        <Text font={FONT} position={[-0.17, 0.024, -0.03]} rotation={[-Math.PI / 2, 0, 0.05]} fontSize={0.045} color={palette.accent} anchorX="center" anchorY="middle" maxWidth={0.28} textAlign="center">
+          BUILD NOTES
         </Text>
       </Interactive>
       {/* Sticky notes: how I build */}
       {[
-        { position: [0.38, 0.536, -0.22], rotation: -0.25, color: '#8fb8f0', text: '01\nPLAN' },
-        { position: [0.47, 0.537, 0.12], rotation: 0.18, color: '#f7a8b8', text: '02\nAI AID' },
-        { position: [0.22, 0.538, 0.44], rotation: -0.1, color: '#b9e39b', text: '03\nREVIEW\n+ TEST' },
-        { position: [-0.18, 0.539, 0.52], rotation: 0.32, color: '#ffd66e', text: '04\nSHIP' },
+        { position: [0.38, 0.536, -0.22], rotation: -0.25, color: '#a9c3de', text: '01\nPLAN' },
+        { position: [0.47, 0.537, 0.12], rotation: 0.18, color: '#e9b8a8', text: '02\nAI AID' },
+        { position: [0.22, 0.538, 0.44], rotation: -0.1, color: '#b9cfa6', text: '03\nREVIEW\n+ TEST' },
+        { position: [-0.18, 0.539, 0.52], rotation: 0.32, color: '#f2d27a', text: '04\nSHIP' },
       ].map((note) => (
         <group key={note.text} position={note.position} rotation={[0, note.rotation, 0]}>
           <Block args={[0.26, 0.006, 0.26]} color={note.color} roughness={0.9} castShadow={false} />
@@ -901,9 +1407,9 @@ function NotesTable() {
       <group position={[-0.4, 0.535, -0.32]}>
         <mesh castShadow position={[0, 0.09, 0]}>
           <cylinderGeometry args={[0.08, 0.07, 0.18, 16]} />
-          <meshStandardMaterial color="#e9c99d" roughness={0.75} />
+          <meshStandardMaterial color="#2e2f33" roughness={0.45} />
         </mesh>
-        {[['#e2703a', 0.02, 0.15], ['#5fa856', -0.03, -0.12], ['#6d8fe0', 0.01, 0.02]].map(([color, x, tilt]) => (
+        {[['#d9a65b', 0.02, 0.15], ['#23201d', -0.03, -0.12], ['#c4572e', 0.01, 0.02]].map(([color, x, tilt]) => (
           <mesh key={color} position={[x, 0.24, 0]} rotation={[0, 0, tilt]} castShadow>
             <cylinderGeometry args={[0.012, 0.012, 0.26, 6]} />
             <meshStandardMaterial color={color} roughness={0.6} />
@@ -911,15 +1417,19 @@ function NotesTable() {
         ))}
       </group>
       {/* Mug */}
-      <mesh position={[0.05, 0.585, -0.42]} castShadow>
-        <cylinderGeometry args={[0.06, 0.055, 0.1, 14]} />
-        <meshStandardMaterial color="#fff3e2" roughness={0.5} />
-      </mesh>
+      <Mug position={[0.05, 0.59, -0.42]} color="#c4704e" rotation={-0.8} />
       {/* Floor cushions */}
-      {[[0.95, 0.65, 0.4], [-0.8, 0.85, -0.3]].map(([x, z, r]) => (
-        <RoundedBox key={x} args={[0.5, 0.12, 0.5]} radius={0.05} position={[x, 0.07, z]} rotation={[0, r, 0]} castShadow>
-          <meshStandardMaterial color="#c6b4ef" roughness={0.9} />
-        </RoundedBox>
+      {[[0.95, 0.65, '#c9a27e'], [-0.8, 0.85, palette.sage]].map(([x, z, color]) => (
+        <group key={x} position={[x, 0, z]}>
+          <mesh position={[0, 0.17, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[0.26, 0.27, 0.32, 32]} />
+            <meshStandardMaterial color={color} roughness={0.95} map={fabricMap()} />
+          </mesh>
+          <mesh position={[0, 0.331, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.22, 0.26, 32]} />
+            <meshStandardMaterial color="#00000022" transparent opacity={0.12} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -933,8 +1443,8 @@ function NotesTable() {
 /* Closed-box dressing: a timber-framed miniature crate wrapped as a gift */
 /* ------------------------------------------------------------------ */
 
-const RIBBON = '#fff4e2';
-const RIBBON_SHADE = '#f3dcc0';
+const RIBBON = '#f4ede2';
+const RIBBON_SHADE = '#e6dccb';
 
 // Timber frame around one face of a panel. `w`/`h` are the face size; the frame sits on the panel's outer face.
 function PanelFrame({ w, h, depth = 0.05, bar = 0.17, color = palette.timber }) {
@@ -966,10 +1476,10 @@ function FrontPanelDressing({ width, height }) {
         <RoundedBox args={[2.72, 1.1, 0.06]} radius={0.05} position={[0, height * 0.56, 0.07]}>
           <meshStandardMaterial color="#fffaf2" roughness={0.85} transparent />
         </RoundedBox>
-        <Text font={FONT} position={[0, height * 0.56 + 0.15, 0.105]} fontSize={0.46} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.04}>
-          JAZZ
+        <Text font={FONT} position={[0, height * 0.56 + 0.15, 0.105]} fontSize={0.3} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.04}>
+          JAZZ SAJONIA
         </Text>
-        <Text font={FONT_MEDIUM} position={[0, height * 0.56 - 0.3, 0.105]} fontSize={0.12} color="#b8612f" anchorX="center" anchorY="middle" letterSpacing={0.28}>
+        <Text font={FONT_MEDIUM} position={[0, height * 0.56 - 0.3, 0.105]} fontSize={0.12} color={palette.accent} anchorX="center" anchorY="middle" letterSpacing={0.28}>
           PORTFOLIO · OPEN ME
         </Text>
         {/* Brass latch below the plaque */}
@@ -1065,9 +1575,9 @@ function OutsideWindow() {
       <Block args={[1.12, 0.05, 0.03]} color={palette.timber} position={[0, 0, 0.05]} castShadow={false} />
       {[-1, 1].map((side) => (
         <group key={side} position={[side * 0.95, 0, 0.03]}>
-          <Block args={[0.48, 1.3, 0.05]} color="#e98f45" castShadow={false} />
+          <Block args={[0.48, 1.3, 0.05]} color="#7d8c6a" castShadow={false} />
           {[-0.4, -0.2, 0, 0.2, 0.4].map((y) => (
-            <Block key={y} args={[0.38, 0.03, 0.02]} color="#c9733a" position={[0, y, 0.03]} castShadow={false} />
+            <Block key={y} args={[0.38, 0.03, 0.02]} color="#68765a" position={[0, y, 0.03]} castShadow={false} />
           ))}
         </group>
       ))}
@@ -1096,9 +1606,9 @@ function GroundShadow() {
     canvas.height = 128;
     const context = canvas.getContext('2d');
     const gradient = context.createRadialGradient(64, 64, 8, 64, 64, 64);
-    gradient.addColorStop(0, 'rgba(120, 52, 10, 0.5)');
-    gradient.addColorStop(0.55, 'rgba(120, 52, 10, 0.22)');
-    gradient.addColorStop(1, 'rgba(120, 52, 10, 0)');
+    gradient.addColorStop(0, 'rgba(60, 44, 32, 0.45)');
+    gradient.addColorStop(0.55, 'rgba(60, 44, 32, 0.2)');
+    gradient.addColorStop(1, 'rgba(60, 44, 32, 0)');
     context.fillStyle = gradient;
     context.fillRect(0, 0, 128, 128);
     return new THREE.CanvasTexture(canvas);
@@ -1199,12 +1709,12 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
         <Block args={[outerSize + 0.04, BASE, outerSize + 0.04]} color={palette.base} position={[0, -BASE / 2 - 0.03, 0]} roughness={0.9} />
         <Block args={[outerSize + 0.08, 0.06, outerSize + 0.08]} color={palette.timberDark} position={[0, -0.03, 0]} />
         {Array.from({ length: 10 }, (_, index) => (
-          <Block key={index} args={[0.585, 0.03, 2 * S]} color={index % 2 ? palette.floorA : palette.floorB} position={[-S + 0.3 + index * 0.6, 0.012, 0]} roughness={0.85} castShadow={false} />
+          <Block key={index} args={[0.585, 0.03, 2 * S]} color={index % 2 ? palette.floorA : palette.floorB} map={woodAlong()} position={[-S + 0.3 + index * 0.6, 0.012, 0]} roughness={0.7} castShadow={false} />
         ))}
 
         {/* Permanent walls: back (display wall) and left (computer wall) */}
-        <Block args={[2 * S + T, H, T]} color={palette.plaster} position={[T / 2 * -1, H / 2, -S - T / 2]} roughness={0.95} />
-        <Block args={[T, H, 2 * S]} color={palette.plasterShade} position={[-S - T / 2, H / 2, 0]} roughness={0.95} />
+        <Block args={[2 * S + T, H, T]} color={palette.plaster} map={plasterMap()} position={[T / 2 * -1, H / 2, -S - T / 2]} roughness={0.95} />
+        <Block args={[T, H, 2 * S]} color={palette.plasterShade} map={plasterMap()} position={[-S - T / 2, H / 2, 0]} roughness={0.95} />
         {/* Skirting */}
         <Block args={[2 * S, 0.12, 0.03]} color={palette.timber} position={[0, 0.07, -S + 0.015]} castShadow={false} />
         <Block args={[0.03, 0.12, 2 * S]} color={palette.timber} position={[-S + 0.015, 0.07, 0]} castShadow={false} />
@@ -1249,14 +1759,14 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
 /* ------------------------------------------------------------------ */
 
 const DAY = {
-  hemiSky: new THREE.Color('#fff4e2'), hemiGround: new THREE.Color('#d08a52'), hemi: 1.25,
+  hemiSky: new THREE.Color('#fff4e2'), hemiGround: new THREE.Color('#b89478'), hemi: 1.15,
   key: new THREE.Color('#fff0d8'), keyIntensity: 1.9, ambient: 0.25,
-  fill: new THREE.Color('#ffd6a3'), background: new THREE.Color('#f9a54f'),
+  fill: new THREE.Color('#ffd6a3'), background: new THREE.Color('#e9dccb'),
 };
 const NIGHT = {
   hemiSky: new THREE.Color('#5a6aa8'), hemiGround: new THREE.Color('#2a2440'), hemi: 0.5,
   key: new THREE.Color('#9fb4ff'), keyIntensity: 0.42, ambient: 0.12,
-  fill: new THREE.Color('#ffc983'), background: new THREE.Color('#0d1430'),
+  fill: new THREE.Color('#ffc983'), background: new THREE.Color('#121828'),
 };
 
 function radialTexture(stops, size = 128) {
@@ -1328,10 +1838,11 @@ function SceneLighting() {
       key.current.intensity = THREE.MathUtils.lerp(DAY.keyIntensity, NIGHT.keyIntensity, night) * THREE.MathUtils.lerp(0.78, 1, light);
     }
     if (scene.background?.isColor) scene.background.copy(DAY.background).lerp(NIGHT.background, night);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.35, 0.06, night) * THREE.MathUtils.lerp(0.6, 1, light);
   });
   return (
     <>
-      <hemisphereLight ref={hemi} args={['#fff4e2', '#d08a52', 1.25]} />
+      <hemisphereLight ref={hemi} args={['#fff4e2', '#b89478', 1.15]} />
       <ambientLight ref={ambient} intensity={0.25} />
       <directionalLight
         ref={key}
@@ -1339,8 +1850,8 @@ function SceneLighting() {
         position={[6, 10, 7]}
         intensity={1.9}
         color="#fff0d8"
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-left={-6}
         shadow-camera-right={6}
         shadow-camera-top={6}
@@ -1370,8 +1881,8 @@ function Backdrop() {
         fragmentShader={`uniform float uNight; varying vec2 vUv;
           void main() {
             float t = smoothstep(0.2, 0.75, vUv.y);
-            vec3 day = mix(vec3(0.98, 0.55, 0.2), vec3(1.0, 0.93, 0.74), t);
-            vec3 night = mix(vec3(0.11, 0.16, 0.36), vec3(0.03, 0.05, 0.14), t);
+            vec3 day = mix(vec3(0.89, 0.78, 0.67), vec3(0.97, 0.95, 0.92), t);
+            vec3 night = mix(vec3(0.078, 0.102, 0.169), vec3(0.039, 0.055, 0.094), t);
             gl_FragColor = vec4(mix(day, night, uNight), 1.0);
           }`}
       />
@@ -1637,13 +2148,13 @@ function WallLamp() {
     <Interactive label={lightOn ? 'Turn the room light off' : 'Turn the room light on'} onSelect={toggleLight} position={[-2.28, 2.42, -S + 0.02]} labelOffset={[0, 0.55, 0.2]}>
       {/* Round wooden wall plate */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.12, 0.02]} castShadow>
-        <cylinderGeometry args={[0.1, 0.1, 0.04, 20]} />
-        <meshStandardMaterial color={palette.timber} roughness={0.7} />
+        <cylinderGeometry args={[0.07, 0.07, 0.03, 24]} />
+        <meshStandardMaterial color="#1f2022" roughness={0.4} metalness={0.6} />
       </mesh>
       {/* Brass arm */}
       <mesh position={[0, 0.12, 0.13]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.014, 0.014, 0.2, 8]} />
-        <meshStandardMaterial color="#d6a65a" roughness={0.35} metalness={0.4} />
+        <meshStandardMaterial color={palette.brass} roughness={0.3} metalness={0.8} />
       </mesh>
       <mesh position={[0, 0.06, 0.23]}>
         <cylinderGeometry args={[0.012, 0.012, 0.12, 8]} />
@@ -1651,8 +2162,8 @@ function WallLamp() {
       </mesh>
       {/* Bell shade, open at the bottom */}
       <mesh position={[0, -0.03, 0.23]} castShadow>
-        <cylinderGeometry args={[0.07, 0.17, 0.16, 24, 1, true]} />
-        <meshStandardMaterial color="#f7a8b8" roughness={0.6} side={THREE.DoubleSide} />
+        <cylinderGeometry args={[0.06, 0.16, 0.17, 32, 1, true]} />
+        <meshStandardMaterial color="#1f2022" roughness={0.38} metalness={0.55} side={THREE.DoubleSide} />
       </mesh>
       {/* Globe bulb */}
       <mesh position={[0, -0.1, 0.23]}>
@@ -1694,12 +2205,12 @@ function DeskPc() {
     rings.forEach((ring, index) => {
       if (!ring.current) return;
       ring.current.emissive.copy(sample(rgbMode, time, index * 1.4));
-      ring.current.emissiveIntensity = on ? 1.7 : 0;
+      ring.current.emissiveIntensity = on ? 1.2 : 0;
     });
     strips.forEach((strip, index) => {
       if (!strip.current) return;
       strip.current.emissive.copy(sample(rgbMode, time, 2.6 + index));
-      strip.current.emissiveIntensity = on ? 1.5 : 0;
+      strip.current.emissiveIntensity = on ? 1.1 : 0;
     });
     if (glow.current) {
       glow.current.color.copy(sample(rgbMode, time, 0.7));
@@ -1714,13 +2225,13 @@ function DeskPc() {
     <Interactive label={`PC lighting: ${RGB_LABELS[rgbMode]} · click to change`} onSelect={cycleRgb} position={[-0.1, 0.995, -1.0]} labelOffset={[0.2, HT + 0.25, 0]}>
       {/* Shell */}
       <RoundedBox args={[D, HT, W]} radius={0.025} smoothness={2} position={[0, HT / 2 + 0.03, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#f4e6d4" roughness={0.55} />
+        <meshStandardMaterial color="#2b2c30" roughness={0.45} metalness={0.3} />
       </RoundedBox>
       {[[-0.2, -0.12], [-0.2, 0.12], [0.2, -0.12], [0.2, 0.12]].map(([x, z]) => (
         <Block key={`${x}${z}`} args={[0.06, 0.03, 0.05]} color={palette.timberDark} position={[x, 0.015, z]} castShadow={false} />
       ))}
       {/* Recessed dark front with mesh look */}
-      <Block args={[0.012, HT - 0.07, W - 0.06]} color="#2c2427" position={[D / 2 + 0.002, HT / 2 + 0.03, 0]} castShadow={false} roughness={0.75} />
+      <Block args={[0.012, HT - 0.07, W - 0.06]} color="#151618" position={[D / 2 + 0.002, HT / 2 + 0.03, 0]} castShadow={false} roughness={0.75} />
       {/* Two front fans */}
       <group position={[D / 2 + 0.012, 0, 0]} scale={1.08}>
         <Fan position={[0, (HT * 0.72 + 0.03) / 1.08, 0]} ringRef={rings[0]} />
@@ -1730,7 +2241,7 @@ function DeskPc() {
       {[-1, 1].map((side, index) => (
         <mesh key={side} position={[D / 2 + 0.008, HT / 2 + 0.03, side * (W / 2 - 0.018)]}>
           <boxGeometry args={[0.01, HT - 0.1, 0.012]} />
-          <meshStandardMaterial ref={strips[index]} color="#2a2228" emissive="#ff8b55" emissiveIntensity={1.5} toneMapped={false} />
+          <meshStandardMaterial ref={strips[index]} color="#2a2228" emissive="#e07a4b" emissiveIntensity={1.5} toneMapped={false} />
         </mesh>
       ))}
       {/* Power button */}
@@ -1740,9 +2251,9 @@ function DeskPc() {
       </mesh>
       {/* Top vents */}
       {[-0.15, -0.07, 0.01, 0.09].map((x) => (
-        <Block key={x} args={[0.045, 0.004, 0.22]} color="#d9c6ae" position={[x, HT + 0.032, -0.02]} castShadow={false} receiveShadow={false} />
+        <Block key={x} args={[0.045, 0.004, 0.22]} color="#1a1b1d" position={[x, HT + 0.032, -0.02]} castShadow={false} receiveShadow={false} />
       ))}
-      <pointLight ref={glow} position={[D / 2 + 0.35, HT / 2, 0]} intensity={1.3} distance={1.6} decay={2} color="#ff8b55" />
+      <pointLight ref={glow} position={[D / 2 + 0.35, HT / 2, 0]} intensity={1.3} distance={1.6} decay={2} color="#e07a4b" />
     </Interactive>
   );
 }
@@ -1759,8 +2270,8 @@ const couchToRoom = (x, z) => {
 };
 
 function Couch() {
-  const fabric = '#8ec5b8';
-  const fabricDark = '#76b0a3';
+  const fabric = '#7f8b72';
+  const fabricDark = '#6f7a63';
   return (
     <group position={COUCH.position} rotation={[0, COUCH.yaw, 0]}>
       {[[-0.52, -0.25], [0.52, -0.25], [-0.52, 0.25], [0.52, 0.25]].map(([x, z]) => (
@@ -1770,26 +2281,26 @@ function Couch() {
         </mesh>
       ))}
       <RoundedBox args={[1.3, 0.22, 0.72]} radius={0.06} smoothness={2} position={[0, 0.21, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color={fabricDark} roughness={0.9} />
+        <meshStandardMaterial color={fabricDark} roughness={0.95} map={fabricMap()} />
       </RoundedBox>
       {[-0.27, 0.27].map((x) => (
         <RoundedBox key={x} args={[0.54, 0.13, 0.58]} radius={0.05} smoothness={2} position={[x, 0.385, 0.05]} castShadow receiveShadow>
-          <meshStandardMaterial color={fabric} roughness={0.9} />
+          <meshStandardMaterial color={fabric} roughness={0.95} map={fabricMap()} />
         </RoundedBox>
       ))}
       <RoundedBox args={[1.3, 0.46, 0.18]} radius={0.07} smoothness={2} position={[0, 0.52, -0.28]} castShadow receiveShadow>
-        <meshStandardMaterial color={fabric} roughness={0.9} />
+        <meshStandardMaterial color={fabric} roughness={0.95} map={fabricMap()} />
       </RoundedBox>
       {[-0.6, 0.6].map((x) => (
         <RoundedBox key={x} args={[0.16, 0.36, 0.72]} radius={0.06} smoothness={2} position={[x, 0.4, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color={fabricDark} roughness={0.9} />
+          <meshStandardMaterial color={fabricDark} roughness={0.95} map={fabricMap()} />
         </RoundedBox>
       ))}
       {/* Throw pillow and blanket */}
       <RoundedBox args={[0.3, 0.28, 0.1]} radius={0.05} smoothness={2} position={[-0.36, 0.58, -0.14]} rotation={[-0.25, 0.25, 0.12]} castShadow>
-        <meshStandardMaterial color="#f6c453" roughness={0.85} />
+        <meshStandardMaterial color="#d0a24c" roughness={0.9} map={fabricMap()} />
       </RoundedBox>
-      <Block args={[0.42, 0.02, 0.6]} color="#f7a8b8" position={[0.3, 0.462, 0.06]} roughness={0.95} castShadow={false} />
+      <Block args={[0.42, 0.02, 0.6]} color="#c4704e" map={fabricMap()} position={[0.3, 0.462, 0.06]} roughness={0.95} castShadow={false} />
     </group>
   );
 }
@@ -2208,7 +2719,12 @@ function RoomScene(props) {
       shadows={{ type: THREE.PCFShadowMap }}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
     >
-      <color attach="background" args={['#f9a54f']} />
+      <color attach="background" args={['#e9dccb']} />
+      <Environment resolution={128} frames={1} environmentIntensity={0.35}>
+        <Lightformer form="rect" intensity={2} color="#fff1dc" position={[0, 6, 4]} scale={[10, 4, 1]} />
+        <Lightformer form="rect" intensity={0.8} color="#e9dccb" position={[-6, 2, 0]} rotation={[0, Math.PI / 2, 0]} scale={[8, 3, 1]} />
+        <Lightformer form="ring" intensity={1.2} color="#ffffff" position={[5, 3, -4]} scale={2} />
+      </Environment>
       <RoomContext.Provider value={props.room}>
         {sky}
         <BoxRoom {...props} />
@@ -2232,8 +2748,7 @@ const cardMotion = {
 function ContextCard({ side, tag, tagColor, children, labelledBy }) {
   return (
     <motion.section className={`box-tour-card box-tour-card-${side}`} aria-labelledby={labelledBy} {...cardMotion}>
-      <span className="box-tour-tag" style={{ background: tagColor }}>{tag}</span>
-      <span className="box-tour-clip" aria-hidden="true" />
+      <span className="box-tour-tag" style={{ '--tag-dot': tagColor }}>{tag}</span>
       {children}
     </motion.section>
   );
@@ -2553,12 +3068,12 @@ export default function ScrollRoomPortfolio() {
           </motion.p>
         )}
         {phase === 'display' && (
-          <ContextCard key="display" side="left" tag="About" tagColor="#78c25b" labelledBy="card-about">
+          <ContextCard key="display" side="left" tag="About" tagColor={palette.sage} labelledBy="card-about">
             <h2 id="card-about">Full-stack developer and AI automation specialist.</h2>
             <p>I’m Jazzther Bert Shanne Sajonia, an IT graduate from General Santos City. I build web apps, Android apps, and AI-powered automations that connect webhooks, AI models, Airtable, and Google Workspace with structured outputs, error handling, and human review.</p>
             <dl className="box-tour-stats">
               <div><dt>BS IT</dt><dd>SEAIT graduate, 2022–2026</dd></div>
-              <div><dt>{projects.length}</dt><dd>Featured projects</dd></div>
+              <div><dt>{allProjects.length}</dt><dd>Projects built</dd></div>
               <div><dt>3</dt><dd>Jobs in admin and operations</dd></div>
             </dl>
             {skillGroups.map((group) => (
@@ -2572,7 +3087,7 @@ export default function ScrollRoomPortfolio() {
           </ContextCard>
         )}
         {phase === 'computer' && (
-          <ContextCard key="computer" side="right" tag="Projects" tagColor="#9b7be0" labelledBy="card-project">
+          <ContextCard key="computer" side="right" tag="Projects" tagColor={project.color} labelledBy="card-project">
             <div className="box-tour-project-meta" aria-live="polite">
               <span>{projectIndex + 1} / {projects.length}</span>
               <span>{project.type}</span>
@@ -2600,7 +3115,7 @@ export default function ScrollRoomPortfolio() {
           </ContextCard>
         )}
         {phase === 'notes' && (
-          <ContextCard key="notes" side="left" tag="How I build" tagColor="#6d9be8" labelledBy="card-notes">
+          <ContextCard key="notes" side="left" tag="How I build" tagColor="#5f7fa8" labelledBy="card-notes">
             <h2 id="card-notes">Notes from the worktable.</h2>
             <ol className="box-tour-steps">
               {buildSteps.map(([number, label]) => <li key={number}><span>{number}</span>{label}</li>)}
@@ -2616,7 +3131,7 @@ export default function ScrollRoomPortfolio() {
           </ContextCard>
         )}
         {phase === 'contact' && (
-          <ContextCard key="contact" side="left" tag="Contact" tagColor="#e2703a" labelledBy="card-contact">
+          <ContextCard key="contact" side="left" tag="Contact" tagColor={palette.accent} labelledBy="card-contact">
             <h2 id="card-contact">Let’s build something.</h2>
             <p>Hiring for a full-stack or AI automation role, or have a workflow you want automated? Send me a message.</p>
             <ul className="box-tour-contact-list">

@@ -13,7 +13,8 @@ An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature b
 | GIF previews and project data | Reused from the main Portfolio repo |
 | Lint / production build | Pass locally (only the archive's existing `no-img-element` warnings) |
 | Real phone scroll feel and frame rate | Not tested |
-| Production deployment | Unchanged until PR #6 is approved and merged |
+| Professional palette, new objects, profile photo, Qline and five other new projects, themed `/projects` page | Implemented on `refine/pro-room-and-projects`; see `docs/STATUS.md` |
+| Production deployment | Unchanged until the open PR is approved and merged |
 
 ## Stack
 
@@ -30,4 +31,4 @@ Open `http://localhost:3000`. The project is configured for static export and us
 
 ## Design direction
 
-A warm miniature diorama: cream plaster walls, timber trim and plank floor on a thick base, soft orange backdrop, closely following the supplied reference recording. Room labels (name sign, shelf labels, PROJECTS plaque, notes) are 3D text; HTML is used only for the welcome, contextual cards, navigation and accessible controls. The WebGL pixel ratio is capped at 1.25. See `docs/BOX-OPENING-ROOM-TOUR-PROMPT.md` for the full brief and `docs/STATUS.md` for verification details.
+A miniature designer studio: textured plaster walls, walnut and oak wood grain, sage fabrics, black steel and brass on a sand backdrop (deep navy at night), with a terracotta accent. Project content lives in `src/data/projects.js` and feeds both the room monitor and `/projects`. Room labels (name sign, shelf labels, PROJECTS plaque, notes) are 3D text; HTML is used only for the welcome, contextual cards, navigation and accessible controls. The WebGL pixel ratio is capped at 1.25. See `docs/BOX-OPENING-ROOM-TOUR-PROMPT.md` for the full brief and `docs/STATUS.md` for verification details.
