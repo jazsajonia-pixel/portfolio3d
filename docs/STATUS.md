@@ -1,5 +1,22 @@
 # Portfolio3D status
 
+## 2026-11-22: living room, robot and lo-fi (`feat/living-room-robot`)
+
+| Area | Status |
+| --- | --- |
+| Photo | The framed photo is now a painted version of Jazz's graduation photo (`public/room/profile.jpg`, 640 × 800), so it matches the illustrated room. |
+| Desk | Mouse moved to the sitter's right on a longer felt mat; the mug sits on the left with steam. Both are driven by the person at the desk. |
+| Person | A procedural figure (hoodie, jeans, sneakers, curly hair) with two-bone IK arms and legs. At the desk he types, uses the mouse, drinks coffee and stretches; the chair rolls back when he stands. He walks to the couch to pet the cat while it naps (hearts appear), and steps to the window with his coffee on the Projects stop so the screen is free. Click him to wave and get a speech bubble. |
+| Robot | A hovering assistant flies a loop around the room, visits the desk and projects a small hologram while it helps, and on the new AI lab stop docks and projects a rotating knowledge graph (nodes, links, labels, beam). Click it for a chirp, a spin, and the AI lab stop. |
+| Tour | Eight stops: Welcome, The room, About and tools, Experience (gallery wall + timeline), Projects, AI lab, How I build, Contact. |
+| Look around | At any stop, drag to orbit a little (±25° sideways, ±12° up/down on mouse; sideways only on touch). The view springs back when the tour moves, a drag never counts as a click, and a one-time hint explains it. |
+| House | The lid is now a gable roof (shingles, fascia, barge boards, ridge cap, brick chimney, round attic vents). The front panel has a smaller name sign, a front door with brass knob and step, and a porch lamp. |
+| Lo-fi | Clicking the record plays a lo-fi loop generated live in the browser with Web Audio (`src/lib/lofi.js`: electric-piano chords, bass, swung drums, vinyl crackle, tape wobble). A "Now playing" pill has a stop button; M toggles it; it stops when the tab is hidden or the page is left. No audio files are shipped. |
+| Extras | Linen curtains on the window, a brass floor lamp and side table by the couch, floating music notes while the record plays. The room size is unchanged (it already fits the new actors and a bigger room would push the desk and wall out of the stop framings). |
+| More info | Project buttons and the monitor link to the matching project on the main portfolio (https://jazz-portfolio1.vercel.app/projects#slug). |
+| Lint / build | `npm run lint` (only the existing `no-img-element` warnings) and `npm run build` pass. Screenshots: `docs/review/house-closed.png`, `ai-lab.png`, `couch-petting.png`, `living-room-tour.jpg`. Mobile (390 × 844) checked for all eight stops. |
+| Not verified | Audio was not listened to (headless browser); actor motion was only observed at about 1.5 fps in software rendering; not tested on a physical phone. |
+
 ## 2026-11-22: professional room refresh and new projects (`refine/pro-room-and-projects`)
 
 | Area | Status |

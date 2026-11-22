@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import AnimatedProjectPreview from '@/components/AnimatedProjectPreview';
-import { projects, projectGroups } from '@/data/projects';
+import { mainPortfolioProject, projects, projectGroups } from '@/data/projects';
 import { ArrowRight, ArrowSquareOut, GithubLogo, GraduationCap, LockSimple } from 'phosphor-react';
 
 // Each accent is a muted, room-matched tone: a soft tinted panel behind the preview plus a dot colour.
@@ -65,6 +65,9 @@ function Preview({ project, tall = false }) {
 function Links({ project }) {
   return (
     <div className="mt-6 flex flex-wrap gap-3">
+      <a href={mainPortfolioProject(project.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#c4572e]/40 bg-[#c4572e]/[.06] px-5 text-sm font-semibold text-[#a8461f] transition hover:border-[#c4572e] hover:bg-[#c4572e] hover:text-[#fbf8f3]">
+        More info <ArrowSquareOut size={15} />
+      </a>
       {project.liveDemo && (
         <a href={project.liveDemo} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#23201d] px-5 text-sm font-semibold text-[#fbf8f3] transition hover:bg-[#c4572e]">
           {project.liveLabel || 'Live demo'} <ArrowSquareOut size={15} />

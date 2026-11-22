@@ -1,13 +1,14 @@
 'use client';
 
 import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
-import { Environment, Html, Instance, Instances, Lightformer, RoundedBox, Text, Trail, useTexture } from '@react-three/drei';
+import { Billboard, Environment, Html, Instance, Instances, Lightformer, RoundedBox, Text, Trail, useTexture } from '@react-three/drei';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Envelope, GithubLogo, Lightbulb, LinkedinLogo, MapPin, Moon, Phone, Sun } from 'phosphor-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Envelope, GithubLogo, HandGrabbing, Lightbulb, LinkedinLogo, MapPin, Moon, Pause, Phone, Sun } from 'phosphor-react';
 import * as THREE from 'three';
-import { projects as allProjects, roomProjects as projects } from '@/data/projects';
+import { getLofi } from '@/lib/lofi';
+import { MAIN_PORTFOLIO, projects as allProjects, roomProjects as projects } from '@/data/projects';
 
 /* ------------------------------------------------------------------ */
 /* Content                                                             */
@@ -20,6 +21,20 @@ const skillGroups = [
   { title: 'Databases and mobile', items: ['PostgreSQL', 'MySQL', 'Neon', 'Prisma', 'Drizzle', 'Flutter', 'Kotlin', 'Jetpack Compose', 'React Native (Expo)'] },
   { title: 'AI and automation', items: ['Make.com', 'Webhooks', 'Airtable', 'Google Sheets', 'Gmail', 'OpenAI', 'Gemini', 'Claude', 'Structured outputs', 'AI agents'] },
   { title: 'DevOps', items: ['Git', 'GitHub', 'GitHub Actions CI/CD', 'Vercel', 'Automated testing'] },
+];
+
+const journey = [
+  { role: 'Encoder', place: 'HPG Apopong, General Santos City', period: 'Sep 2026 – present', detail: 'Official records, daily DPAR and PICE reports, memoranda and confidential files.' },
+  { role: 'Farm Accounting Staff', place: 'Abdeo Farm, General Santos City', period: 'Jul – Aug 2026', detail: 'Daily transactions, check postings, payroll, delivery and inventory records.' },
+  { role: 'BS Information Technology', place: 'South East Asian Institute of Technology', period: '2022 – 2026', detail: 'Graduated; capstone and side projects in web, Android and AI automation.' },
+  { role: 'HR Office Intern', place: 'SEAIT, Tupi', period: 'Jul – Nov 2025', detail: 'Employee and student records, documents and correspondence, front-desk support.' },
+];
+
+const aiLab = [
+  { slug: 'qline', title: 'Qline', text: 'Personal AI operating system: L0–L4 risk policy, approval cards, memory and a hash-chained audit log.' },
+  { slug: 'unified-connector', title: 'Unified Connector', text: 'One MCP address for AI apps, with OAuth 2.1 + PKCE and per-app read-only tools.' },
+  { slug: 'cortex', title: 'Cortex', text: 'On-device Android agent running open models with llama.cpp, plus a 3D knowledge graph.' },
+  { slug: 'chrauto-ai', title: 'Chrauto AI', text: 'Android agent that reads the screen, plans with AI, validates locally and waits for approval.' },
 ];
 
 const buildSteps = [
@@ -56,15 +71,17 @@ const TIMELINE = {
 // travelling between stops animates progress from the end of one hold to the start of the next.
 const STEPS = [
   { id: 'intro', label: 'Welcome', hold: [0, 0], focus: 0 },
-  { id: 'overview', label: 'The room', hold: [0.32, 0.37], focus: 0.345 },
-  { id: 'display', label: 'About and tools', hold: [0.445, 0.55], focus: 0.4975 },
-  { id: 'computer', label: 'Projects', hold: [0.625, 0.725], focus: 0.675 },
-  { id: 'notes', label: 'How I build', hold: [0.8, 0.885], focus: 0.8425 },
-  { id: 'contact', label: 'Contact', hold: [0.955, 1], focus: 1 },
+  { id: 'overview', label: 'The room', hold: [0.32, 0.36], focus: 0.34 },
+  { id: 'display', label: 'About and tools', hold: [0.42, 0.48], focus: 0.45 },
+  { id: 'journey', label: 'Experience', hold: [0.54, 0.6], focus: 0.57 },
+  { id: 'computer', label: 'Projects', hold: [0.66, 0.72], focus: 0.69 },
+  { id: 'ai', label: 'AI lab', hold: [0.78, 0.84], focus: 0.81 },
+  { id: 'notes', label: 'How I build', hold: [0.89, 0.93], focus: 0.91 },
+  { id: 'contact', label: 'Contact', hold: [0.97, 1], focus: 1 },
 ];
 const LAST_STEP = STEPS.length - 1;
 // Seconds to travel from step i to step i + 1 (the first leg opens the box, so it gets more time).
-const LEG_DURATION = [2.6, 1.5, 1.5, 1.5, 1.5];
+const LEG_DURATION = [2.6, 1.5, 1.3, 1.4, 1.5, 1.5, 1.5];
 
 // Fractional step position → scroll-timeline progress used by the box and camera.
 function progressAt(value) {
@@ -132,10 +149,12 @@ function dirToWorld([x, y, z]) {
 // Each stop: a look target, the direction the camera sits in from that target, the subject size that must fit,
 // and where the information card sits (so the subject is framed in the free part of the screen).
 const STOPS = {
-  box: { look: new THREE.Vector3(0, 0.1, 0), dir: new THREE.Vector3(0, 0.36, 1).normalize(), w: 11.5, h: 9.2, wp: 10.2, hp: 9.2, card: 'none', lift: 0.07 },
+  box: { look: new THREE.Vector3(0, 0.55, 0), dir: new THREE.Vector3(0, 0.36, 1).normalize(), w: 11.5, h: 10.4, wp: 10.2, hp: 10.6, card: 'none', lift: 0.07 },
   overview: { look: new THREE.Vector3(0, -0.15, 0), dir: new THREE.Vector3(0, 0.52, 1).normalize(), w: 9.4, h: 7.2, wp: 9.8, hp: 7.2, card: 'none', lift: 0 },
   display: { look: toWorld([0.75, 1.95, -3]), dir: dirToWorld([0.16, 0.1, 1]), w: 4.3, h: 2.9, wp: 2.5, hp: 2.7, card: 'left', lift: 0, lookPortrait: toWorld([0.25, 2.1, -3]) },
   computer: { look: toWorld([-3, 1.3, 0.2]), dir: dirToWorld([1, 0.22, 0.05]), w: 4.1, h: 2.5, wp: 2.55, hp: 2.3, card: 'right', lift: 0, lookPortrait: toWorld([-3, 1.55, -0.3]) },
+  journey: { look: toWorld([2.04, 1.82, -3]), dir: dirToWorld([-0.12, 0.08, 1]), w: 2.2, h: 1.55, wp: 1.75, hp: 1.6, card: 'left', lift: 0 },
+  ai: { look: toWorld([1.75, 1.5, -0.2]), dir: dirToWorld([0.25, 0.16, 1]), w: 2.4, h: 3.4, wp: 1.9, hp: 3.2, card: 'left', lift: 0 },
   outro: { look: new THREE.Vector3(0, -0.35, 0), dir: new THREE.Vector3(0.12, 0.5, 1).normalize(), w: 8.6, h: 6.6, wp: 9.6, hp: 7.4, card: 'left', lift: 0 },
   notes: { look: toWorld([0.75, 0.5, 0.85]), dir: dirToWorld([0.55, 0.95, 0.75]), w: 2.5, h: 1.8, wp: 2.25, hp: 1.9, card: 'left', lift: 0 },
 };
@@ -145,16 +164,10 @@ const STOPS = {
 const KEYFRAMES = [
   { at: 0, stop: 'box' },
   { at: 0.18, stop: 'box' },
-  { at: 0.32, stop: 'overview' },
-  { at: 0.37, stop: 'overview' },
-  { at: 0.445, stop: 'display' },
-  { at: 0.55, stop: 'display' },
-  { at: 0.625, stop: 'computer' },
-  { at: 0.725, stop: 'computer' },
-  { at: 0.8, stop: 'notes' },
-  { at: 0.885, stop: 'notes' },
-  { at: 0.955, stop: 'outro' },
-  { at: 1, stop: 'outro' },
+  ...STEPS.slice(1).flatMap((item) => {
+    const stop = item.id === 'contact' ? 'outro' : item.id;
+    return [{ at: item.hold[0], stop }, { at: item.hold[1], stop }];
+  }),
 ];
 
 const FOV = 38;
@@ -189,8 +202,53 @@ function frameStop(stop, width, height) {
   };
 }
 
+// Is the tour resting at a stop (not the welcome screen, not travelling)?
+function atRest(p) {
+  return STEPS.some((item, index) => index > 0 && p >= item.hold[0] - 0.002 && p <= item.hold[1] + 0.002);
+}
+
+// Limited look-around: at a stop, dragging orbits the camera a little around the subject (±25° sideways,
+// ±12° up and down). It springs back when the tour moves on, so the cards always stay readable.
+const LOOK_YAW = THREE.MathUtils.degToRad(25);
+const LOOK_PITCH = THREE.MathUtils.degToRad(12);
+
 function CameraTour({ progressRef, reducedMotion }) {
   const { camera, size, gl, pointer } = useThree();
+  const look = useRef({ yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, drag: null, notified: false });
+  const offset = useMemo(() => new THREE.Vector3(), []);
+  useEffect(() => {
+    const element = gl.domElement;
+    const state = look.current;
+    const onDown = (event) => {
+      if (!atRest(progressRef.current.smooth) || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      state.drag = { x: event.clientX, y: event.clientY, yaw: state.targetYaw, pitch: state.targetPitch, type: event.pointerType, moved: false };
+    };
+    const onMove = (event) => {
+      const drag = state.drag;
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      // On touch, vertical swipes move between stops, so only a mostly horizontal drag looks around.
+      if (drag.type !== 'mouse' && !drag.moved && Math.abs(dy) > Math.abs(dx)) { state.drag = null; return; }
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+      drag.moved = true;
+      element.classList.add('is-dragging');
+      state.targetYaw = THREE.MathUtils.clamp(drag.yaw - (dx / size.width) * 1.6, -LOOK_YAW, LOOK_YAW);
+      if (drag.type === 'mouse') state.targetPitch = THREE.MathUtils.clamp(drag.pitch + (dy / size.height) * 1.0, -LOOK_PITCH, LOOK_PITCH);
+      if (!state.notified) { state.notified = true; window.dispatchEvent(new CustomEvent('tour:look')); }
+    };
+    const onUp = () => { state.drag = null; element.classList.remove('is-dragging'); };
+    element.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      element.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [gl, size, progressRef]);
   const current = useRef(null);
   const parallax = useRef({ x: 0, y: 0 });
   const right = useMemo(() => new THREE.Vector3(), []);
@@ -238,7 +296,16 @@ function CameraTour({ progressRef, reducedMotion }) {
     const distance = current.current.position.distanceTo(current.current.look);
     const amount = Math.min(0.06 * distance, 0.5);
     right.subVectors(current.current.look, current.current.position).cross(camera.up).normalize();
-    camera.position.copy(current.current.position)
+    // Look-around orbit (springs back to the framed view while travelling).
+    const lookState = look.current;
+    if (!atRest(p) || reducedMotion) { lookState.targetYaw = 0; lookState.targetPitch = 0; lookState.drag = null; }
+    const spring = 1 - Math.pow(lookState.drag ? 0.0001 : 0.02, Math.min(delta, 0.1));
+    lookState.yaw += (lookState.targetYaw - lookState.yaw) * spring;
+    lookState.pitch += (lookState.targetPitch - lookState.pitch) * spring;
+    offset.subVectors(current.current.position, current.current.look)
+      .applyAxisAngle(right, -lookState.pitch)
+      .applyAxisAngle(camera.up, lookState.yaw);
+    camera.position.copy(current.current.look).add(offset)
       .addScaledVector(right, parallax.current.x * amount)
       .addScaledVector(camera.up, parallax.current.y * amount * 0.6);
     camera.lookAt(current.current.look);
@@ -333,6 +400,45 @@ function paintFabric(context, width, height) {
 }
 const woodAlong = () => makeCanvasTexture('wood-v', 256, 512, (c, w, h) => paintWood(c, w, h, 3));
 const woodAcross = () => makeCanvasTexture('wood-h', 256, 512, (c, w, h) => paintWood(c, w, h, 5), { rotate: true });
+function paintShingles(context, width, height) {
+  const random = seeded(11);
+  context.fillStyle = '#efe6dc';
+  context.fillRect(0, 0, width, height);
+  const rows = 8;
+  const rowH = height / rows;
+  for (let row = 0; row < rows; row += 1) {
+    const tiles = 6;
+    const tileW = width / tiles;
+    const shift = row % 2 ? tileW / 2 : 0;
+    for (let tile = -1; tile <= tiles; tile += 1) {
+      const x = tile * tileW + shift;
+      const shade = 215 + Math.floor(random() * 40);
+      context.fillStyle = `rgb(${shade}, ${shade - 8}, ${shade - 14})`;
+      context.beginPath();
+      context.roundRect(x + 2, row * rowH + 1, tileW - 4, rowH - 2, [0, 0, 10, 10]);
+      context.fill();
+    }
+    context.fillStyle = 'rgba(60, 30, 20, 0.35)';
+    context.fillRect(0, row * rowH + rowH - 3, width, 3);
+  }
+}
+function paintBrick(context, width, height) {
+  const random = seeded(5);
+  context.fillStyle = '#d9cfc6';
+  context.fillRect(0, 0, width, height);
+  const rows = 8;
+  const rowH = height / rows;
+  for (let row = 0; row < rows; row += 1) {
+    const shift = row % 2 ? width / 8 : 0;
+    for (let brick = -1; brick < 4; brick += 1) {
+      const shade = 200 + Math.floor(random() * 55);
+      context.fillStyle = `rgb(${shade}, ${shade - 20}, ${shade - 30})`;
+      context.fillRect(brick * (width / 4) + shift + 2, row * rowH + 2, width / 4 - 4, rowH - 4);
+    }
+  }
+}
+const shingleMap = () => makeCanvasTexture('shingles', 256, 256, paintShingles, { repeat: [3.5, 2.6] });
+const brickMap = () => makeCanvasTexture('brick', 128, 128, paintBrick, { repeat: [1, 1.6] });
 const plasterMap = () => makeCanvasTexture('plaster', 512, 512, paintPlaster, { repeat: [1.5, 1.5] });
 const fabricMap = () => makeCanvasTexture('fabric', 128, 128, paintFabric, { repeat: [4, 4] });
 
@@ -439,7 +545,7 @@ function Interactive({ label, onSelect, labelOffset = [0, 0.4, 0], children, ...
         ref={group}
         onPointerOver={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
         onPointerOut={() => { setHovered(false); document.body.style.cursor = ''; }}
-        onClick={(event) => { event.stopPropagation(); onSelect?.(); }}
+        onClick={(event) => { event.stopPropagation(); if (event.delta > 6) return; onSelect?.(); }}
       >
         {children}
       </group>
@@ -508,17 +614,55 @@ function Fan({ position, speed = 9, ringRef }) {
 /* Display / shelf wall (back wall, z = -S)                             */
 /* ------------------------------------------------------------------ */
 
+// Tracks whether the generated lo-fi track is playing (shared by the record player and the "Now playing" pill).
+function useLofiPlaying() {
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    const lofi = getLofi();
+    if (!lofi) return undefined;
+    setPlaying(lofi.playing);
+    return lofi.on(setPlaying);
+  }, []);
+  return playing;
+}
+
+function MusicNotes({ playing }) {
+  const group = useRef();
+  const { reducedMotion } = useRoom();
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    group.current.visible = playing && !reducedMotion;
+    group.current.children.forEach((note, index) => {
+      const phase = (clock.elapsedTime * 0.32 + index / 3) % 1;
+      note.position.set(Math.sin(phase * 5 + index * 2) * 0.08 - 0.06, 0.15 + phase * 0.55, 0);
+      note.scale.setScalar(Math.max(0.001, Math.sin(phase * Math.PI)));
+    });
+  });
+  return (
+    <group ref={group} visible={false}>
+      {['♪', '♫', '♪'].map((glyph, index) => (
+        <Billboard key={index}>
+          <Text font={FONT} fontSize={0.075} color={palette.accent} anchorX="center" anchorY="middle" fillOpacity={1}>
+            {glyph}
+          </Text>
+        </Billboard>
+      ))}
+    </group>
+  );
+}
+
 function SpinningRecord() {
   const record = useRef();
   const arm = useRef();
-  const [playing, setPlaying] = useState(true);
+  const playing = useLofiPlaying();
   const { reducedMotion } = useRoom();
   useFrame((_, delta) => {
     if (record.current && playing && !reducedMotion) record.current.rotation.y += delta * 3.5;
     if (arm.current) arm.current.rotation.y += ((playing ? -0.42 : 0.05) - arm.current.rotation.y) * Math.min(1, delta * 4);
   });
   return (
-    <Interactive label={playing ? 'Pause the record' : 'Play the record'} onSelect={() => setPlaying((value) => !value)} position={[-0.42, 0.76, 0.02]} labelOffset={[0, 0.35, 0]}>
+    <Interactive label={playing ? 'Stop the lo-fi' : 'Play some lo-fi'} onSelect={() => getLofi()?.toggle()} position={[-0.42, 0.76, 0.02]} labelOffset={[0, 0.35, 0]}>
+      <MusicNotes playing={playing} />
       {/* Walnut plinth with aluminium feet */}
       <RoundedBox args={[0.62, 0.07, 0.46]} radius={0.012} smoothness={2} position={[0, 0.035, 0]} castShadow receiveShadow>
         <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAcross()} />
@@ -985,7 +1129,7 @@ function drawMonitorScreen(canvas, project, index, total, image) {
   context.fillStyle = 'rgba(255,255,255,0.45)';
   context.font = '500 15px "Space Grotesk", system-ui, sans-serif';
   context.textAlign = 'left';
-  context.fillText(`jazz.dev/projects/${project.slug}`, 148, 30);
+  context.fillText(`jazz-portfolio1.vercel.app/projects#${project.slug}`, 148, 30);
   context.textAlign = 'right';
   context.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, width - 28, 31);
 
@@ -1150,10 +1294,10 @@ function ProjectBoard() {
   );
 }
 
-function OfficeChair() {
+function OfficeChair({ position = [-S + 1.3, 0, -0.3], yaw = 0 }) {
   const fabric = '#2f3033';
   return (
-    <group position={[-S + 1.3, 0, -0.3]} rotation={[0, -0.25, 0]}>
+    <group position={position} rotation={[0, yaw, 0]}>
       {/* Seat */}
       <RoundedBox args={[0.56, 0.09, 0.54]} radius={0.04} smoothness={3} position={[0, 0.58, 0]} castShadow receiveShadow>
         <meshStandardMaterial color={fabric} roughness={0.9} map={fabricMap()} />
@@ -1271,7 +1415,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         <group position={[-0.2, 0.99, -0.05]} rotation={[0, Math.PI / 2, 0]}>
           <Block args={[0.3, 0.012, 0.2]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.006, 0]} />
           <Block args={[0.06, 0.34, 0.025]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.18, -0.03]} />
-          <Interactive label={controlsVisible ? 'Next project' : 'See my projects'} onSelect={() => (controlsVisible ? onNext() : goTo('computer'))} position={[0, 0.66, 0.0]} labelOffset={[0, 0.6, 0.05]}>
+          <Interactive label={controlsVisible ? `More about ${project.title}` : 'See my projects'} onSelect={() => (controlsVisible ? window.open(project.href, '_blank', 'noopener,noreferrer') : goTo('computer'))} position={[0, 0.66, 0.0]} labelOffset={[0, 0.6, 0.05]}>
             <RoundedBox args={[1.28, 0.82, 0.05]} radius={0.018} smoothness={3} castShadow>
               <meshStandardMaterial color="#17181a" roughness={0.35} metalness={0.3} />
             </RoundedBox>
@@ -1307,11 +1451,8 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
           </Instances>
         </group>
         {/* Felt desk mat, mouse */}
-        <Block args={[0.4, 0.004, 1.2]} color="#3a3b3e" roughness={0.98} map={fabricMap()} position={[0.12, 0.992, 0.05]} castShadow={false} />
-        <mesh position={[0.14, 1.012, 0.55]} scale={[0.062, 0.03, 0.1]} castShadow>
-          <sphereGeometry args={[1, 20, 14]} />
-          <meshStandardMaterial color="#1f2022" roughness={0.35} />
-        </mesh>
+        <Block args={[0.42, 0.004, 1.34]} color="#3a3b3e" roughness={0.98} map={fabricMap()} position={[0.14, 0.992, -0.16]} castShadow={false} />
+        <DeskMouse />
         {/* Studio monitor speaker */}
         <group position={[-0.22, 0.99, 0.72]}>
           <RoundedBox args={[0.2, 0.3, 0.2]} radius={0.015} smoothness={2} position={[0, 0.15, 0]} castShadow>
@@ -1331,10 +1472,8 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
           ))}
         </group>
         <DeskPc />
-        <Mug position={[0.27, 1.045, -0.62]} color="#e8e2d8" rotation={0.6} />
+        <DeskMug />
       </group>
-
-      <OfficeChair />
     </group>
   );
 }
@@ -1443,8 +1582,6 @@ function NotesTable() {
 /* Closed-box dressing: a timber-framed miniature crate wrapped as a gift */
 /* ------------------------------------------------------------------ */
 
-const RIBBON = '#f4ede2';
-const RIBBON_SHADE = '#e6dccb';
 
 // Timber frame around one face of a panel. `w`/`h` are the face size; the frame sits on the panel's outer face.
 function PanelFrame({ w, h, depth = 0.05, bar = 0.17, color = palette.timber }) {
@@ -1469,27 +1606,49 @@ function FrontPanelDressing({ width, height }) {
         {[0.25, 0.5, 0.75].map((f) => (
           <Block key={f} args={[width - 0.34, 0.025, 0.01]} color={palette.plasterShade} position={[0, height * f, -0.02]} castShadow={false} receiveShadow={false} />
         ))}
-        {/* Name plaque */}
-        <RoundedBox args={[2.9, 1.28, 0.08]} radius={0.06} position={[0, height * 0.56, 0.03]} castShadow>
-          <meshStandardMaterial color={palette.timberDark} roughness={0.7} transparent />
-        </RoundedBox>
-        <RoundedBox args={[2.72, 1.1, 0.06]} radius={0.05} position={[0, height * 0.56, 0.07]}>
-          <meshStandardMaterial color="#fffaf2" roughness={0.85} transparent />
-        </RoundedBox>
-        <Text font={FONT} position={[0, height * 0.56 + 0.15, 0.105]} fontSize={0.3} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.04}>
-          JAZZ SAJONIA
-        </Text>
-        <Text font={FONT_MEDIUM} position={[0, height * 0.56 - 0.3, 0.105]} fontSize={0.12} color={palette.accent} anchorX="center" anchorY="middle" letterSpacing={0.28}>
-          PORTFOLIO · OPEN ME
-        </Text>
-        {/* Brass latch below the plaque */}
-        <RoundedBox args={[0.34, 0.2, 0.05]} radius={0.03} position={[0, height * 0.24, 0.03]} castShadow>
-          <meshStandardMaterial color="#d6a65a" roughness={0.35} metalness={0.5} transparent />
-        </RoundedBox>
-        <mesh position={[0, height * 0.24, 0.065]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.035, 0.035, 0.03, 14]} />
-          <meshStandardMaterial color="#8a5a24" roughness={0.4} metalness={0.4} transparent />
-        </mesh>
+        {/* Name sign, left of the door */}
+        <group position={[-1.25, height * 0.6, 0]}>
+          <RoundedBox args={[2.3, 0.98, 0.08]} radius={0.06} position={[0, 0, 0.03]} castShadow>
+            <meshStandardMaterial color={palette.timberDark} roughness={0.7} transparent />
+          </RoundedBox>
+          <RoundedBox args={[2.14, 0.82, 0.06]} radius={0.05} position={[0, 0, 0.07]}>
+            <meshStandardMaterial color="#fffaf2" roughness={0.85} transparent />
+          </RoundedBox>
+          <Text font={FONT} position={[0, 0.12, 0.105]} fontSize={0.25} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.04}>
+            JAZZ SAJONIA
+          </Text>
+          <Text font={FONT_MEDIUM} position={[0, -0.22, 0.105]} fontSize={0.1} color={palette.accent} anchorX="center" anchorY="middle" letterSpacing={0.26}>
+            PORTFOLIO · OPEN ME
+          </Text>
+        </group>
+        {/* Front door: frame, four raised panels, brass knob, step */}
+        <group position={[1.35, 0, 0]}>
+          <Block args={[1.22, 2.36, 0.08]} color={palette.linen} roughness={0.6} position={[0, 1.18, 0.02]} />
+          <Block args={[1.02, 2.2, 0.06]} color="#5f7a6a" roughness={0.55} position={[0, 1.12, 0.07]} />
+          {[[-0.23, 1.62], [0.23, 1.62], [-0.23, 0.62], [0.23, 0.62]].map(([x, y]) => (
+            <RoundedBox key={`${x}${y}`} args={[0.36, y > 1 ? 0.78 : 0.82, 0.03]} radius={0.012} position={[x, y, 0.11]}>
+              <meshStandardMaterial color="#6c8877" roughness={0.5} transparent />
+            </RoundedBox>
+          ))}
+          <mesh position={[0.4, 1.1, 0.14]}>
+            <sphereGeometry args={[0.045, 16, 12]} />
+            <meshStandardMaterial color="#d6a65a" roughness={0.3} metalness={0.7} transparent />
+          </mesh>
+          <Block args={[0.18, 0.05, 0.02]} color="#d6a65a" metalness={0.6} roughness={0.35} position={[0, 1.6, 0.13]} castShadow={false} />
+          <Block args={[1.5, 0.08, 0.32]} color="#cfc5b6" roughness={0.8} position={[0, 0.04, 0.16]} />
+          {/* Porch lamp */}
+          <group position={[0.88, 1.95, 0.08]}>
+            <Block args={[0.08, 0.2, 0.06]} color={palette.metal} metalness={0.5} roughness={0.4} castShadow={false} />
+            <mesh position={[0, -0.02, 0.12]}>
+              <cylinderGeometry args={[0.07, 0.09, 0.22, 6]} />
+              <meshStandardMaterial color="#ffe0a8" emissive="#ffc27a" emissiveIntensity={0.9} roughness={0.3} transparent />
+            </mesh>
+            <mesh position={[0, 0.12, 0.12]}>
+              <coneGeometry args={[0.12, 0.08, 6]} />
+              <meshStandardMaterial color={palette.metal} roughness={0.4} metalness={0.5} transparent />
+            </mesh>
+          </group>
+        </group>
       </group>
       {/* Front-right corner post (the other three are permanent walls of the room) */}
       <Block args={[0.24, height - 0.2, 0.24]} color={palette.timberDark} position={[width / 2 - 0.12, (height - 0.2) / 2, 0]} />
@@ -1526,35 +1685,81 @@ function SidePanelDressing({ depth, height }) {
   );
 }
 
-// Lid: overhanging rim, ribbon cross and a bow. `size` is the lid's square size; `top` is its top face height.
+// Lid → gable roof, so the closed box reads as a little house. `size` is the lid's square size; `top` is its top
+// face height. The ridge runs along x; slopes fall to the front and back edges. Every material can fade, because
+// the whole lid fades out with the panels once the room is open.
+const ROOF_RISE = 1.55;
+const ROOF_OVERHANG = 0.3;
 function LidDressing({ size, top, center }) {
-  const ribbonW = 0.5;
+  const half = size / 2 + ROOF_OVERHANG;
+  const slope = Math.hypot(half, ROOF_RISE);
+  const angle = Math.atan2(ROOF_RISE, half);
+  const length = size + 0.5;
+  const gable = useMemo(() => {
+    const shape = new THREE.Shape();
+    const h = size / 2;
+    shape.moveTo(-h, 0);
+    shape.lineTo(h, 0);
+    shape.lineTo(0, ROOF_RISE * (h / half));
+    shape.closePath();
+    return new THREE.ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: false });
+  }, [size, half]);
+  const chimneyZ = -0.95;
+  const chimneyBase = ROOF_RISE * (1 - Math.abs(chimneyZ) / half);
   return (
-    <group position={[0, 0, center]}>
-      {/* Darker rim under the lid edge gives it a proper overhang */}
-      <Block args={[size + 0.16, 0.08, size + 0.12]} color={palette.timberDark} position={[0, 0.04, 0]} castShadow={false} />
-      {/* Ribbon cross over the top and down the lid edges */}
-      <Block args={[ribbonW, 0.03, size + 0.06]} color={RIBBON} position={[0, top + 0.015, 0]} castShadow={false} />
-      <Block args={[size + 0.1, 0.03, ribbonW]} color={RIBBON} position={[0, top + 0.016, 0]} castShadow={false} />
-      <Block args={[ribbonW, top + 0.03, 0.03]} color={RIBBON_SHADE} position={[0, (top + 0.03) / 2, (size + 0.06) / 2]} castShadow={false} />
-      <Block args={[0.03, top + 0.03, ribbonW]} color={RIBBON_SHADE} position={[(size + 0.1) / 2, (top + 0.03) / 2, 0]} castShadow={false} />
-      {/* Bow */}
-      <group position={[0, top + 0.12, 0]}>
-        {[-1, 1].map((side) => (
-          <mesh key={side} position={[side * 0.42, 0.12, 0]} rotation={[Math.PI / 2, side * 0.35, 0]} scale={[1, 0.62, 1]} castShadow>
-            <torusGeometry args={[0.36, 0.11, 12, 28]} />
-            <meshStandardMaterial color={RIBBON} roughness={0.55} transparent />
+    <group position={[0, top, center]}>
+      {/* Eaves board along the lid edge */}
+      <Block args={[size + 0.16, 0.12, size + 0.12]} color={palette.timberDark} position={[0, -0.06, 0]} castShadow={false} />
+      {/* Gable walls (plaster, with a round attic vent on each end) */}
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * (size / 2 - 0.06), 0, 0]} rotation={[0, side * Math.PI / 2, 0]}>
+          <mesh geometry={gable} position={[0, 0, -0.05]} castShadow receiveShadow>
+            <meshStandardMaterial color={palette.plasterShade} roughness={0.92} map={plasterMap()} transparent />
           </mesh>
-        ))}
-        {[-1, 1].map((side) => (
-          <mesh key={`tail-${side}`} position={[side * 0.32, -0.07, 0.38]} rotation={[0, side * 0.5, 0]} castShadow>
-            <boxGeometry args={[0.24, 0.025, 0.7]} />
-            <meshStandardMaterial color={RIBBON_SHADE} roughness={0.6} transparent />
+          <group position={[0, ROOF_RISE * 0.38, 0.06]}>
+            <mesh>
+              <torusGeometry args={[0.24, 0.05, 10, 32]} />
+              <meshStandardMaterial color={palette.timberDark} roughness={0.6} transparent />
+            </mesh>
+            <mesh position={[0, 0, -0.01]}>
+              <circleGeometry args={[0.23, 32]} />
+              <meshStandardMaterial color="#ffe3b3" emissive="#ffc27a" emissiveIntensity={0.45} roughness={0.4} transparent />
+            </mesh>
+            <Block args={[0.46, 0.035, 0.02]} color={palette.timberDark} castShadow={false} />
+            <Block args={[0.035, 0.46, 0.02]} color={palette.timberDark} castShadow={false} />
+          </group>
+        </group>
+      ))}
+      {/* Two shingled slopes */}
+      {[-1, 1].map((side) => (
+        <group key={side} position={[0, ROOF_RISE / 2, side * half / 2]} rotation={[side * angle, 0, 0]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[length, 0.09, slope]} />
+            <meshStandardMaterial color="#b4573a" roughness={0.78} map={shingleMap()} transparent />
           </mesh>
-        ))}
-        <mesh position={[0, 0.06, 0]} castShadow>
-          <sphereGeometry args={[0.17, 18, 14]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} transparent />
+          {/* Fascia board on the low edge */}
+          <Block args={[length + 0.02, 0.16, 0.06]} color={palette.linen} roughness={0.6} position={[0, -0.04, side * (slope / 2)]} castShadow={false} />
+          {/* Barge boards on the gable edges */}
+          {[-1, 1].map((end) => (
+            <Block key={end} args={[0.07, 0.15, slope]} color={palette.linen} roughness={0.6} position={[end * (length / 2), -0.02, 0]} castShadow={false} />
+          ))}
+        </group>
+      ))}
+      {/* Ridge cap */}
+      <mesh position={[0, ROOF_RISE + 0.04, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.09, 0.09, length + 0.04, 16]} />
+        <meshStandardMaterial color="#8f4129" roughness={0.7} transparent />
+      </mesh>
+      {/* Brick chimney on the back slope */}
+      <group position={[-size * 0.26, 0, chimneyZ]}>
+        <mesh position={[0, chimneyBase + 0.2, 0]} castShadow>
+          <boxGeometry args={[0.46, 1.1, 0.46]} />
+          <meshStandardMaterial color="#a65a43" roughness={0.9} map={brickMap()} transparent />
+        </mesh>
+        <Block args={[0.56, 0.08, 0.56]} color="#6f6a65" roughness={0.7} position={[0, chimneyBase + 0.79, 0]} />
+        <mesh position={[0, chimneyBase + 0.86, 0]}>
+          <cylinderGeometry args={[0.09, 0.09, 0.12, 14, 1, true]} />
+          <meshStandardMaterial color="#4a4744" roughness={0.6} metalness={0.3} side={THREE.DoubleSide} transparent />
         </mesh>
       </group>
     </group>
@@ -1642,6 +1847,11 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
       <Cat />
       <WallLamp />
       <WindowLight />
+      <WindowCurtains />
+      <FloorLamp />
+      <SideTable />
+      <Human />
+      <Robot />
     </>
   ), []);
   const firefly = useMemo(() => <Firefly />, []);
@@ -2348,7 +2558,7 @@ function Cat() {
   const bubbleTimer = useRef(0);
   const state = useRef({ mode: reducedMotion ? 'sleep' : 'walk', segment: 0, along: 0, loops: 0, timer: 0, yaw: 0, from: new THREE.Vector3(), to: new THREE.Vector3() });
 
-  useEffect(() => { if (reducedMotion) state.current.mode = 'sleep'; }, [reducedMotion]);
+  useEffect(() => { if (reducedMotion || window.__tourDebug?.catSleep) state.current.mode = 'sleep'; }, [reducedMotion]);
   useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
 
   const say = useCallback((text) => {
@@ -2500,6 +2710,9 @@ function Cat() {
     if (eyesOpen.current) eyesOpen.current.visible = !sleeping;
     if (eyesClosed.current) eyesClosed.current.visible = sleeping;
     if (eyeMaterial.current) eyeMaterial.current.emissiveIntensity = nightRef.current.value * (1 - lightRef.current.value) * 2.2 + 0.15;
+    actors.cat.sleeping = cat.mode === 'sleep';
+    actors.cat.napLeft = cat.mode === 'sleep' ? CAT_NAP - cat.timer : 0;
+    actors.cat.position.copy(position);
     if (typeof window !== 'undefined' && window.__tourDebug) {
       const world = root.current.getWorldPosition(new THREE.Vector3());
       window.__tourDebug.cat = { mode: cat.mode, x: +position.x.toFixed(2), z: +position.z.toFixed(2), world: world.toArray().map((v) => +v.toFixed(2)) };
@@ -2702,6 +2915,1131 @@ function Firefly() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Actors: the person at the desk and the helper robot                   */
+/* ------------------------------------------------------------------ */
+
+// Shared, frame-by-frame state. Each actor writes its own entry in useFrame and reads the others, so the
+// person, the robot, the cat and the desk props can react to each other without React re-renders.
+const actors = {
+  cat: { sleeping: false, napLeft: 0, petting: false, position: new THREE.Vector3() },
+  human: { mugInHand: false, mouse: new THREE.Vector2(), atDesk: true, head: new THREE.Vector3(-1.82, 1.7, -0.47) },
+  robot: { position: new THREE.Vector3(0.6, 1.5, 1.6), helping: false },
+};
+
+const UP = new THREE.Vector3(0, 1, 0);
+const tmpA = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+const tmpC = new THREE.Vector3();
+const tmpQ = new THREE.Quaternion();
+const tmpE = new THREE.Euler(0, 0, 0, 'YXZ');
+
+// Desk-local props the person touches (the desk group sits at [-S + 0.42, 0, -0.3]).
+const DESK_ORIGIN = new THREE.Vector3(-S + 0.42, 0, -0.3);
+const MOUSE_HOME = [0.15, 0.992, -0.58];
+const MUG_HOME = [0.3, 0.99, 0.36];
+
+function DeskMouse() {
+  const ref = useRef();
+  const led = useRef();
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const offset = actors.human.mouse;
+    ref.current.position.set(MOUSE_HOME[0] + offset.x, MOUSE_HOME[1], MOUSE_HOME[2] + offset.y);
+    if (led.current) led.current.emissiveIntensity = 1.2 + Math.sin(clock.elapsedTime * 2) * 0.4;
+  });
+  return (
+    <group ref={ref} position={MOUSE_HOME}>
+      {/* Low ergonomic shell, long axis pointing at the monitor */}
+      <mesh position={[0, 0.004, 0]} scale={[0.062, 0.03, 0.036]} castShadow>
+        <sphereGeometry args={[1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#232427" roughness={0.42} metalness={0.15} />
+      </mesh>
+      <mesh position={[0, 0.003, 0]} scale={[0.063, 0.004, 0.037]}>
+        <cylinderGeometry args={[1, 1, 1, 28]} />
+        <meshStandardMaterial color="#141416" roughness={0.7} />
+      </mesh>
+      {/* Button split and scroll wheel */}
+      <Block args={[0.05, 0.002, 0.0025]} color="#0f0f11" position={[-0.03, 0.03, 0]} castShadow={false} />
+      <mesh position={[-0.034, 0.03, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.008, 0.008, 0.006, 14]} />
+        <meshStandardMaterial color="#8e9096" roughness={0.35} metalness={0.6} />
+      </mesh>
+      <mesh position={[0.04, 0.022, 0]}>
+        <sphereGeometry args={[0.003, 8, 6]} />
+        <meshStandardMaterial ref={led} color="#5fd6bf" emissive="#5fd6bf" emissiveIntensity={1.2} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function DeskMug() {
+  const ref = useRef();
+  const steam = useRef();
+  useFrame(({ clock }) => {
+    if (ref.current) ref.current.visible = !actors.human.mugInHand;
+    if (steam.current) {
+      steam.current.children.forEach((wisp, index) => {
+        const t = (clock.elapsedTime * 0.35 + index / 3) % 1;
+        wisp.position.set(Math.sin(t * 6 + index) * 0.012, 0.08 + t * 0.16, 0);
+        wisp.material.opacity = Math.sin(t * Math.PI) * 0.22;
+        wisp.scale.setScalar(0.6 + t * 0.9);
+      });
+    }
+  });
+  return (
+    <group ref={ref} position={MUG_HOME}>
+      <Mug position={[0, 0.055, 0]} color="#e8e2d8" rotation={-1.1} />
+      <group ref={steam}>
+        {[0, 1, 2].map((index) => (
+          <mesh key={index}>
+            <sphereGeometry args={[0.018, 10, 8]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+/* ---------- Human: a procedurally rigged figure with simple two-bone IK ---------- */
+
+const DESK_SIT = new THREE.Vector3(-1.84, 0, -0.47);
+const DESK_STAND = new THREE.Vector3(-1.6, 0, -0.47);
+const DESK_YAW = -Math.PI / 2;
+const COUCH_SEAT = (() => { const [x, z] = couchToRoom(-0.28, 0.06); return new THREE.Vector3(x, 0, z); })();
+const COUCH_APPROACH = (() => { const [x, z] = couchToRoom(-0.28, 0.72); return new THREE.Vector3(x, 0, z); })();
+const WINDOW_SPOT = new THREE.Vector3(-2.2, 0, 1.85);
+const HUB = new THREE.Vector3(-1.58, 0, 0.32);
+const SPOKES = {
+  desk: [DESK_STAND],
+  couch: [COUCH_APPROACH, new THREE.Vector3(-0.6, 0, 0.36)],
+  window: [WINDOW_SPOT, new THREE.Vector3(-1.78, 0, 1.3)],
+};
+const routeBetween = (from, to) => [...SPOKES[from], HUB, ...[...SPOKES[to]].reverse()];
+
+const SKIN = '#c68e6e';
+const HOODIE = '#56604f';
+const HOODIE_DARK = '#454e40';
+const DENIM = '#2f3a4c';
+const HAIR = '#1c1512';
+
+const L = { thigh: 0.47, shin: 0.47, upper: 0.31, fore: 0.28 };
+
+// Two-bone IK: places the middle joint so both segments keep their length, bending toward `pole`.
+function solveLimb(root, target, l1, l2, pole, joint, end) {
+  const dir = tmpA.subVectors(target, root);
+  let distance = dir.length() || 0.0001;
+  dir.divideScalar(distance);
+  distance = THREE.MathUtils.clamp(distance, Math.abs(l1 - l2) + 0.01, (l1 + l2) * 0.998);
+  const along = (l1 * l1 - l2 * l2 + distance * distance) / (2 * distance);
+  const height = Math.sqrt(Math.max(0, l1 * l1 - along * along));
+  const bend = tmpB.copy(pole).addScaledVector(dir, -pole.dot(dir)).normalize();
+  joint.copy(root).addScaledVector(dir, along).addScaledVector(bend, height);
+  end.copy(root).addScaledVector(dir, distance);
+}
+
+// Stretch a unit-height cylinder between two points.
+function placeSegment(mesh, a, b) {
+  if (!mesh) return;
+  mesh.position.addVectors(a, b).multiplyScalar(0.5);
+  const length = a.distanceTo(b);
+  tmpC.subVectors(b, a).divideScalar(length || 1);
+  mesh.quaternion.setFromUnitVectors(UP, tmpC);
+  mesh.scale.set(1, Math.max(length, 0.001), 1);
+}
+
+function roomToLocal(point, rootPosition, yaw, out) {
+  out.subVectors(point, rootPosition);
+  return out.applyAxisAngle(UP, -yaw);
+}
+
+function makePose() {
+  return {
+    pelvis: new THREE.Vector3(0, 0.7, -0.02), lean: 0.2, twist: 0, headYaw: 0, headPitch: 0,
+    handL: new THREE.Vector3(0.17, 1.05, 0.58), handR: new THREE.Vector3(-0.03, 1.05, 0.58),
+    footL: new THREE.Vector3(0.14, 0.05, 0.48), footR: new THREE.Vector3(-0.14, 0.05, 0.48),
+    elbowOut: 1, kneeForward: 1,
+  };
+}
+
+function lerpPose(pose, target, k) {
+  pose.pelvis.lerp(target.pelvis, k);
+  pose.handL.lerp(target.handL, k);
+  pose.handR.lerp(target.handR, k);
+  pose.footL.lerp(target.footL, k);
+  pose.footR.lerp(target.footR, k);
+  pose.lean += (target.lean - pose.lean) * k;
+  pose.twist += (target.twist - pose.twist) * k;
+  pose.headYaw += (target.headYaw - pose.headYaw) * k;
+  pose.headPitch += (target.headPitch - pose.headPitch) * k;
+}
+
+const HUMAN_LINES = {
+  desk: ['Shipping one more Qline fix.', 'Tests first, then the merge.', 'Hi! Scroll on to see my work.'],
+  couch: ['Break time with the cat.', 'She approves this build.'],
+  window: ['Coffee break while you look at my projects.', 'The screen is all yours.'],
+  walk: ['Be right back.'],
+};
+
+function Human() {
+  const { reducedMotion, phaseRef } = useRoom();
+  const root = useRef();
+  const chair = useRef();
+  const torso = useRef();
+  const head = useRef();
+  const pelvisMesh = useRef();
+  const mugInHand = useRef();
+  const hearts = useRef();
+  const parts = useRef({});
+  const bind = (name) => (node) => { parts.current[name] = node; };
+  const [bubble, setBubble] = useState(null);
+  const bubbleTimer = useRef(0);
+  const pose = useMemo(() => makePose(), []);
+  const target = useMemo(() => makePose(), []);
+  const joints = useMemo(() => ({
+    shoulderL: new THREE.Vector3(), shoulderR: new THREE.Vector3(), elbowL: new THREE.Vector3(), elbowR: new THREE.Vector3(),
+    wristL: new THREE.Vector3(), wristR: new THREE.Vector3(), hipL: new THREE.Vector3(), hipR: new THREE.Vector3(),
+    kneeL: new THREE.Vector3(), kneeR: new THREE.Vector3(), ankleL: new THREE.Vector3(), ankleR: new THREE.Vector3(),
+    headPos: new THREE.Vector3(), mouth: new THREE.Vector3(), local: new THREE.Vector3(), pole: new THREE.Vector3(),
+  }), []);
+  const state = useRef({
+    mode: 'desk', t: 0, activity: 0, activityT: 0, position: DESK_SIT.clone(), yaw: DESK_YAW,
+    route: [], routeIndex: 0, destination: 'desk', walkPhase: 0, lastCouch: -20, clock: 0,
+    chairOffset: new THREE.Vector3(), chairYaw: 0, wave: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
+  });
+
+  useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
+
+  const onClick = useCallback(() => {
+    const s = state.current;
+    s.wave = 2.2;
+    const key = s.mode === 'couch' ? 'couch' : s.mode === 'window' ? 'window' : s.mode === 'walk' ? 'walk' : 'desk';
+    const lines = HUMAN_LINES[key];
+    setBubble(lines[Math.floor(Math.random() * lines.length)]);
+    window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = window.setTimeout(() => setBubble(null), 2600);
+  }, []);
+
+  // Desk activities in a loop: [name, seconds]
+  const ACTIVITIES = useMemo(() => [['type', 7], ['mouse', 6], ['type', 4], ['drink', 5.5], ['mouse', 7], ['stretch', 3.4], ['type', 5], ['mouse', 5]], []);
+
+  useFrame(({ clock }, rawDelta) => {
+    const delta = Math.min(rawDelta, 0.1);
+    const s = state.current;
+    const time = clock.elapsedTime;
+    s.clock = time;
+    if (!root.current) return;
+
+    // Where should the person be? The screen is left free on the Projects stop; the cat gets a visit while it naps.
+    const stop = phaseRef.current;
+    let goal = 'desk';
+    if (!reducedMotion) {
+      if (stop === 'computer') goal = 'window';
+      else if (s.mode === 'couch' && s.t < 14 && actors.cat.sleeping) goal = 'couch';
+      else if (s.mode === 'walk' && s.destination === 'couch' && actors.cat.sleeping) goal = 'couch';
+      else if (actors.cat.sleeping && actors.cat.napLeft > 13 && time - s.lastCouch > 30 && stop !== 'notes') goal = 'couch';
+    }
+
+    const t = target;
+    const startWalk = (from, to) => {
+      s.mode = 'walk';
+      s.route = routeBetween(from, to);
+      s.routeIndex = 0;
+      s.destination = to;
+      s.t = 0;
+    };
+
+    s.t += delta;
+    // ---- state machine ----
+    if (s.mode === 'desk') {
+      if (goal !== 'desk') { s.mode = 'rise'; s.t = 0; if (goal === 'window') actors.human.mugInHand = true; }
+    } else if (s.mode === 'rise') {
+      s.position.lerpVectors(DESK_SIT, DESK_STAND, smooth(clamp01(s.t / 1.1)));
+      if (s.t > 1.1) startWalk('desk', goal);
+    } else if (s.mode === 'walk') {
+      const next = s.route[s.routeIndex];
+      tmpA.subVectors(next, s.position);
+      tmpA.y = 0;
+      const distance = tmpA.length();
+      const speed = 0.62;
+      if (distance < 0.04) {
+        s.routeIndex += 1;
+        if (s.routeIndex >= s.route.length) {
+          s.mode = s.destination === 'couch' ? 'sitCouch' : s.destination === 'window' ? 'window' : 'sitDesk';
+          s.t = 0;
+          s.from.copy(s.position);
+        }
+      } else {
+        s.position.addScaledVector(tmpA.normalize(), Math.min(distance, speed * delta));
+        s.yaw = angleLerp(s.yaw, Math.atan2(tmpA.x, tmpA.z), 1 - Math.pow(0.0004, delta));
+        s.walkPhase += delta * speed / 0.42 * Math.PI;
+      }
+      // Change of plan mid-walk: head for the new goal from the nearest hub.
+      if (s.mode === 'walk' && goal !== s.destination && s.routeIndex > 0) {
+        s.route = [HUB, ...[...SPOKES[goal]].reverse()];
+        s.routeIndex = 0;
+        s.destination = goal;
+      }
+    } else if (s.mode === 'sitCouch') {
+      s.yaw = angleLerp(s.yaw, COUCH.yaw, 1 - Math.pow(0.0005, delta));
+      const k = smooth(clamp01((s.t - 0.35) / 1));
+      s.position.lerpVectors(s.from, COUCH_SEAT, k);
+      if (s.t > 1.4) { s.mode = 'couch'; s.t = 0; }
+    } else if (s.mode === 'couch') {
+      actors.cat.petting = true;
+      if (goal !== 'couch') { s.mode = 'riseCouch'; s.t = 0; s.lastCouch = time; actors.cat.petting = false; }
+    } else if (s.mode === 'riseCouch') {
+      const k = smooth(clamp01(s.t / 1));
+      s.position.lerpVectors(COUCH_SEAT, COUCH_APPROACH, k);
+      if (s.t > 1.05) { s.position.copy(COUCH_APPROACH); startWalk('couch', goal === 'couch' ? 'desk' : goal); }
+    } else if (s.mode === 'window') {
+      s.yaw = angleLerp(s.yaw, DESK_YAW, 1 - Math.pow(0.001, delta));
+      if (goal !== 'window') startWalk('window', goal);
+    } else if (s.mode === 'sitDesk') {
+      s.yaw = angleLerp(s.yaw, DESK_YAW, 1 - Math.pow(0.0005, delta));
+      const k = smooth(clamp01((s.t - 0.3) / 0.9));
+      s.position.lerpVectors(s.from, DESK_SIT, k);
+      if (s.t > 1.3) { s.mode = 'desk'; s.t = 0; actors.human.mugInHand = false; s.activity = 0; s.activityT = 0; }
+    }
+    if (s.mode !== 'couch') actors.cat.petting = false;
+
+    // ---- target pose ----
+    const seatedDesk = s.mode === 'desk';
+    const standing = s.mode === 'walk' || s.mode === 'window';
+    actors.human.atDesk = seatedDesk;
+    actors.human.mouse.lerp(tmpB.set(0, 0), 0.1);
+
+    // Head target defaults: the monitor.
+    const lookAt = (point) => {
+      roomToLocal(point, s.position, s.yaw, joints.local);
+      const dx = joints.local.x - joints.headPos.x;
+      const dy = joints.local.y - joints.headPos.y;
+      const dz = joints.local.z - joints.headPos.z;
+      t.headYaw = THREE.MathUtils.clamp(Math.atan2(dx, dz) - t.twist, -1.1, 1.1);
+      t.headPitch = THREE.MathUtils.clamp(-Math.atan2(dy, Math.hypot(dx, dz)), -0.6, 0.5);
+    };
+
+    if (seatedDesk || s.mode === 'rise' || s.mode === 'sitDesk') {
+      const [name, length] = reducedMotion ? ['type', 1e9] : ACTIVITIES[s.activity % ACTIVITIES.length];
+      if (seatedDesk) {
+        s.activityT += delta;
+        if (s.activityT > length) { s.activityT = 0; s.activity += 1; }
+      }
+      t.pelvis.set(0, 0.7, -0.02);
+      t.lean = 0.22;
+      t.twist = 0;
+      t.footL.set(0.15, 0.05, 0.47);
+      t.footR.set(-0.13, 0.05, 0.5);
+      const typing = (offset) => (reducedMotion ? 0 : Math.max(0, Math.sin(time * 13 + offset)) * 0.012);
+      t.handL.set(0.27, 1.05 + typing(0), 0.57);
+      t.handR.set(-0.02, 1.05 + typing(2.1), 0.57);
+      lookAt(tmpC.set(-2.78, 1.62, -0.35));
+      const progress = s.activityT / length;
+      if (seatedDesk && name === 'mouse') {
+        const mx = Math.sin(time * 1.3) * 0.035 + Math.sin(time * 3.1) * 0.012;
+        const mz = Math.cos(time * 0.9) * 0.05;
+        actors.human.mouse.set(mx, mz);
+        t.handR.set(-0.41 + mz, 1.045, 0.59 - mx);
+        t.handL.set(0.27, 1.05 + typing(0) * 0.4, 0.57);
+        t.twist = -0.12;
+        t.lean = 0.26;
+      } else if (seatedDesk && name === 'drink') {
+        // reach → lift to mouth → sip → put down
+        const rest = tmpC.set(0.27, 1.05, 0.57);
+        const mugPoint = tmpA.set(0.5, 1.07, 0.44);
+        const mouthPoint = tmpB.set(0.07, 1.6, 0.3);
+        const reach = smooth(clamp01(progress / 0.18));
+        const lift = smooth(clamp01((progress - 0.2) / 0.15));
+        const lower = smooth(clamp01((progress - 0.72) / 0.14));
+        const back = smooth(clamp01((progress - 0.88) / 0.12));
+        actors.human.mugInHand = progress > 0.18 && progress < 0.88;
+        if (progress < 0.2) t.handL.lerpVectors(rest, mugPoint, reach);
+        else if (progress < 0.72) t.handL.lerpVectors(mugPoint, mouthPoint, lift);
+        else if (progress < 0.88) t.handL.lerpVectors(mouthPoint, mugPoint, lower);
+        else t.handL.lerpVectors(mugPoint, rest, back);
+        t.twist = 0.12 * reach * (1 - back);
+        t.lean = 0.16;
+        if (lift > 0.5 && lower < 0.5) t.headPitch = -0.25;
+      } else if (seatedDesk && name === 'stretch') {
+        const up = Math.sin(clamp01(progress) * Math.PI);
+        t.handL.lerp(tmpA.set(0.16, 2.0, 0.02), up);
+        t.handR.lerp(tmpA.set(-0.16, 2.0, 0.02), up);
+        t.lean = THREE.MathUtils.lerp(0.22, -0.16, up);
+        t.headPitch = -0.3 * up;
+      }
+      // Look at the robot when it comes to help.
+      if (seatedDesk && actors.robot.helping && name !== 'drink') {
+        lookAt(actors.robot.position);
+        t.twist = THREE.MathUtils.clamp(t.headYaw * 0.25, -0.3, 0.3);
+      }
+      if (s.mode === 'rise' || s.mode === 'sitDesk') {
+        const k = s.mode === 'rise' ? smooth(clamp01((s.t - 0.25) / 0.8)) : 1 - smooth(clamp01((s.t - 0.25) / 0.9));
+        t.pelvis.lerp(tmpA.set(0, 0.98, 0.0), k);
+        t.lean = THREE.MathUtils.lerp(0.22, 0.05, k) + Math.sin(k * Math.PI) * 0.35;
+        t.footL.lerp(tmpA.set(0.11, 0.05, 0.05), k);
+        t.footR.lerp(tmpA.set(-0.11, 0.05, 0.02), k);
+        t.handL.lerp(tmpA.set(0.24, 0.95, 0.05), k);
+        t.handR.lerp(tmpA.set(-0.24, 0.95, 0.05), k);
+        if (actors.human.mugInHand) t.handL.lerp(tmpA.set(0.12, 1.28, 0.3), k);
+      }
+    } else if (s.mode === 'walk') {
+      const phase = s.walkPhase;
+      const lift = (value) => Math.max(0, Math.cos(value)) * 0.09;
+      t.pelvis.set(0, 0.96 + Math.cos(phase * 2) * 0.015, 0);
+      t.lean = 0.06;
+      t.twist = Math.sin(phase) * 0.08;
+      t.footL.set(0.1, 0.05 + lift(phase), Math.sin(phase) * 0.22);
+      t.footR.set(-0.1, 0.05 + lift(phase + Math.PI), Math.sin(phase + Math.PI) * 0.22);
+      t.handL.set(0.23, 0.95, -Math.sin(phase) * 0.17);
+      t.handR.set(-0.23, 0.95, Math.sin(phase) * 0.17);
+      if (actors.human.mugInHand) t.handL.set(0.12, 1.28, 0.3);
+      t.headYaw = 0;
+      t.headPitch = 0.08;
+    } else if (s.mode === 'window') {
+      t.pelvis.set(0, 0.97, 0);
+      t.lean = 0.02;
+      t.twist = 0;
+      t.footL.set(0.12, 0.05, 0.04);
+      t.footR.set(-0.12, 0.05, -0.02);
+      const sip = (s.t % 6) / 6;
+      const up = sip > 0.55 && sip < 0.85 ? Math.sin(((sip - 0.55) / 0.3) * Math.PI) : 0;
+      t.handL.set(0.12, 1.28, 0.3).lerp(tmpA.set(0.07, 1.62, 0.3), up);
+      t.handR.set(-0.22, 0.98, 0.06);
+      t.headYaw = Math.sin(time * 0.3) * 0.25;
+      t.headPitch = -0.08 - up * 0.2;
+    } else if (s.mode === 'sitCouch' || s.mode === 'couch' || s.mode === 'riseCouch') {
+      const k = s.mode === 'sitCouch' ? smooth(clamp01((s.t - 0.35) / 1)) : s.mode === 'riseCouch' ? 1 - smooth(clamp01(s.t / 1)) : 1;
+      t.pelvis.set(0, 0.97, 0).lerp(tmpA.set(0, 0.56, 0.02), k);
+      t.lean = THREE.MathUtils.lerp(0.05, -0.08, k) + Math.sin(k * Math.PI) * 0.3;
+      t.footL.set(0.11, 0.05, 0.03).lerp(tmpA.set(0.16, 0.05, 0.56), k);
+      t.footR.set(-0.11, 0.05, 0.03).lerp(tmpA.set(-0.16, 0.05, 0.58), k);
+      t.handL.set(0.24, 0.95, 0.05).lerp(tmpA.set(0.16, 0.66, 0.34), k);
+      t.handR.set(-0.24, 0.95, 0.05).lerp(tmpA.set(-0.16, 0.66, 0.34), k);
+      t.twist = 0;
+      t.headYaw = 0;
+      t.headPitch = 0;
+      if (s.mode === 'couch') {
+        // Pet the cat with the left hand (the cat naps on the right-hand cushion, which is his left).
+        roomToLocal(actors.cat.position, s.position, s.yaw, joints.local);
+        const stroke = Math.sin(time * 2.3);
+        t.handL.set(joints.local.x - 0.02 + stroke * 0.07, joints.local.y + 0.16 - Math.abs(stroke) * 0.015, joints.local.z + 0.02);
+        t.twist = 0.32;
+        t.lean = 0.12;
+        lookAt(tmpC.copy(actors.cat.position).setY(actors.cat.position.y + 0.1));
+      }
+    }
+
+    // Wave when clicked (right hand), on top of whatever he is doing.
+    if (s.wave > 0) {
+      s.wave = Math.max(0, s.wave - delta);
+      const w = Math.min(1, s.wave * 2, (2.2 - s.wave) * 3);
+      t.handR.lerp(tmpA.set(-0.3 + Math.sin(time * 12) * 0.06, t.pelvis.y + 0.95, 0.18), w);
+    }
+
+    // Breathing.
+    const breath = reducedMotion ? 0 : Math.sin(time * 1.7) * 0.006;
+    t.pelvis.y += breath * 0.3;
+
+    lerpPose(pose, t, s.mode === 'walk' ? 1 - Math.pow(0.00001, delta) : 1 - Math.pow(0.002, delta));
+
+    // ---- apply ----
+    root.current.position.copy(s.position);
+    root.current.rotation.y = s.yaw;
+
+    if (pelvisMesh.current) pelvisMesh.current.position.copy(pose.pelvis);
+    if (torso.current) {
+      torso.current.position.copy(pose.pelvis);
+      torso.current.rotation.set(pose.lean, pose.twist, 0, 'YXZ');
+      torso.current.scale.y = 1 + breath;
+    }
+    if (head.current) head.current.rotation.set(pose.headPitch, pose.headYaw, 0, 'YXZ');
+
+    tmpE.set(pose.lean, pose.twist, 0, 'YXZ');
+    tmpQ.setFromEuler(tmpE);
+    joints.shoulderL.set(0.19, 0.5, -0.01).applyQuaternion(tmpQ).add(pose.pelvis);
+    joints.shoulderR.set(-0.19, 0.5, -0.01).applyQuaternion(tmpQ).add(pose.pelvis);
+    joints.headPos.set(0, 0.76, 0.02).applyQuaternion(tmpQ).add(pose.pelvis);
+    joints.hipL.set(0.095, -0.03, 0).add(pose.pelvis);
+    joints.hipR.set(-0.095, -0.03, 0).add(pose.pelvis);
+
+    const p = parts.current;
+    // Arms: elbows bend down and out (or back while walking).
+    joints.pole.set(0.6, -1, standing ? -0.6 : -0.25);
+    solveLimb(joints.shoulderL, pose.handL, L.upper, L.fore, joints.pole, joints.elbowL, joints.wristL);
+    joints.pole.set(-0.6, -1, standing ? -0.6 : -0.25);
+    solveLimb(joints.shoulderR, pose.handR, L.upper, L.fore, joints.pole, joints.elbowR, joints.wristR);
+    // Legs: knees bend forward.
+    joints.pole.set(0.05, 0.2, 1);
+    solveLimb(joints.hipL, pose.footL, L.thigh, L.shin, joints.pole, joints.kneeL, joints.ankleL);
+    joints.pole.set(-0.05, 0.2, 1);
+    solveLimb(joints.hipR, pose.footR, L.thigh, L.shin, joints.pole, joints.kneeR, joints.ankleR);
+
+    placeSegment(p.upperL, joints.shoulderL, joints.elbowL);
+    placeSegment(p.foreL, joints.elbowL, joints.wristL);
+    placeSegment(p.upperR, joints.shoulderR, joints.elbowR);
+    placeSegment(p.foreR, joints.elbowR, joints.wristR);
+    placeSegment(p.thighL, joints.hipL, joints.kneeL);
+    placeSegment(p.shinL, joints.kneeL, joints.ankleL);
+    placeSegment(p.thighR, joints.hipR, joints.kneeR);
+    placeSegment(p.shinR, joints.kneeR, joints.ankleR);
+    [['shoulderBallL', joints.shoulderL], ['shoulderBallR', joints.shoulderR], ['elbowBallL', joints.elbowL], ['elbowBallR', joints.elbowR], ['kneeBallL', joints.kneeL], ['kneeBallR', joints.kneeR]].forEach(([name, point]) => p[name]?.position.copy(point));
+    // Hands extend past the wrist along the forearm.
+    [['handL', joints.elbowL, joints.wristL], ['handR', joints.elbowR, joints.wristR]].forEach(([name, elbow, wrist]) => {
+      const hand = p[name];
+      if (!hand) return;
+      tmpC.subVectors(wrist, elbow).normalize();
+      hand.position.copy(wrist).addScaledVector(tmpC, 0.045);
+      hand.quaternion.setFromUnitVectors(UP, tmpC);
+    });
+    // Shoes sit flat and point forward (with a little toe-off while walking).
+    [['shoeL', joints.ankleL, pose.footL], ['shoeR', joints.ankleR, pose.footR]].forEach(([name, ankle, foot]) => {
+      const shoe = p[name];
+      if (!shoe) return;
+      shoe.position.copy(ankle);
+      shoe.rotation.set(s.mode === 'walk' ? -(foot.y - 0.05) * 2.5 : 0, 0, 0);
+    });
+
+    if (mugInHand.current) {
+      mugInHand.current.visible = actors.human.mugInHand;
+      tmpC.subVectors(joints.wristL, joints.elbowL).normalize();
+      mugInHand.current.position.copy(joints.wristL).addScaledVector(tmpC, 0.06).add(tmpA.set(-0.03, 0.02, 0));
+      const sipping = pose.handL.y > 1.5;
+      mugInHand.current.rotation.set(sipping ? -0.5 : 0, 1.6, 0);
+    }
+
+    // Chair: rolls back when he stands up, back in when he sits.
+    if (chair.current) {
+      const out = s.mode === 'desk' ? 0 : s.mode === 'rise' ? smooth(clamp01(s.t / 0.9)) : s.mode === 'sitDesk' ? 1 - smooth(clamp01((s.t - 0.2) / 1)) : 1;
+      chair.current.position.set(DESK_SIT.x + 0.06 + out * 0.35, 0, DESK_SIT.z - out * 0.45);
+      chair.current.rotation.y = out * 0.6;
+    }
+
+    // Hearts over the cat while it is being petted.
+    if (hearts.current) {
+      hearts.current.visible = s.mode === 'couch' && !reducedMotion;
+      hearts.current.position.copy(actors.cat.position);
+      hearts.current.children.forEach((heart, index) => {
+        const phase = (time * 0.5 + index / 3) % 1;
+        heart.position.set(Math.sin(phase * 5 + index) * 0.06, 0.3 + phase * 0.4, 0);
+        heart.material.opacity = Math.sin(phase * Math.PI) * 0.9;
+        heart.scale.setScalar(0.6 + phase * 0.5);
+      });
+    }
+
+    // Publish the head position (room space) for the robot.
+    actors.human.head.copy(joints.headPos).applyAxisAngle(UP, s.yaw).add(s.position);
+    if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.human = { mode: s.mode, activity: ACTIVITIES[s.activity % ACTIVITIES.length][0], x: +s.position.x.toFixed(2), z: +s.position.z.toFixed(2) };
+  });
+
+  const heartShape = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, -0.03);
+    shape.bezierCurveTo(-0.05, 0.0, -0.035, 0.045, 0, 0.022);
+    shape.bezierCurveTo(0.035, 0.045, 0.05, 0.0, 0, -0.03);
+    return shape;
+  }, []);
+
+  const sleeve = (name, rTop, rBottom, color = HOODIE) => (
+    <mesh ref={bind(name)} castShadow>
+      <cylinderGeometry args={[rTop, rBottom, 1, 14]} />
+      <meshStandardMaterial color={color} roughness={0.92} map={fabricMap()} />
+    </mesh>
+  );
+  const ball = (name, radius, color) => (
+    <mesh ref={bind(name)} castShadow>
+      <sphereGeometry args={[radius, 16, 12]} />
+      <meshStandardMaterial color={color} roughness={0.9} map={color === DENIM || color === HOODIE ? fabricMap() : undefined} />
+    </mesh>
+  );
+  const shoe = (name) => (
+    <group ref={bind(name)}>
+      <RoundedBox args={[0.1, 0.07, 0.24]} radius={0.03} smoothness={3} position={[0, -0.03, 0.055]} castShadow>
+        <meshStandardMaterial color="#f1eee8" roughness={0.55} />
+      </RoundedBox>
+      <Block args={[0.104, 0.02, 0.245]} color="#c9b79a" roughness={0.8} position={[0, -0.06, 0.055]} castShadow={false} />
+      <Block args={[0.07, 0.006, 0.09]} color="#2e3a4c" roughness={0.6} position={[0, 0.006, 0.09]} castShadow={false} />
+    </group>
+  );
+  return (
+    <group>
+      <group ref={chair} position={[DESK_SIT.x + 0.06, 0, DESK_SIT.z]}>
+        <OfficeChair position={[0, 0, 0]} />
+      </group>
+      <group ref={root} position={DESK_SIT.toArray()} rotation={[0, DESK_YAW, 0]}>
+        <Interactive label="Say hi" onSelect={onClick} labelOffset={[0, 2.25, 0]}>
+          {/* Jeans: pelvis, thighs, shins */}
+          <mesh ref={pelvisMesh} scale={[0.155, 0.1, 0.11]} castShadow>
+            <sphereGeometry args={[1, 18, 12]} />
+            <meshStandardMaterial color={DENIM} roughness={0.9} map={fabricMap()} />
+          </mesh>
+          {sleeve('thighL', 0.068, 0.078, DENIM)}
+          {sleeve('thighR', 0.068, 0.078, DENIM)}
+          {sleeve('shinL', 0.05, 0.062, DENIM)}
+          {sleeve('shinR', 0.05, 0.062, DENIM)}
+          {ball('kneeBallL', 0.064, DENIM)}
+          {ball('kneeBallR', 0.064, DENIM)}
+          {shoe('shoeL')}
+          {shoe('shoeR')}
+          {/* Hoodie arms */}
+          {sleeve('upperL', 0.05, 0.058)}
+          {sleeve('upperR', 0.05, 0.058)}
+          {sleeve('foreL', 0.04, 0.048)}
+          {sleeve('foreR', 0.04, 0.048)}
+          {ball('shoulderBallL', 0.064, HOODIE)}
+          {ball('shoulderBallR', 0.064, HOODIE)}
+          {ball('elbowBallL', 0.05, HOODIE)}
+          {ball('elbowBallR', 0.05, HOODIE)}
+          <mesh ref={bind('handL')} scale={[0.038, 0.05, 0.026]} castShadow>
+            <sphereGeometry args={[1, 14, 10]} />
+            <meshStandardMaterial color={SKIN} roughness={0.65} />
+          </mesh>
+          <mesh ref={bind('handR')} scale={[0.038, 0.05, 0.026]} castShadow>
+            <sphereGeometry args={[1, 14, 10]} />
+            <meshStandardMaterial color={SKIN} roughness={0.65} />
+          </mesh>
+          {/* Torso: hoodie with hood, pocket and drawstrings */}
+          <group ref={torso}>
+            <mesh position={[0, 0.12, 0]} scale={[0.165, 0.16, 0.115]} castShadow>
+              <sphereGeometry args={[1, 20, 14]} />
+              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
+            </mesh>
+            <mesh position={[0, 0.34, 0]} scale={[0.205, 0.22, 0.13]} castShadow>
+              <sphereGeometry args={[1, 22, 16]} />
+              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
+            </mesh>
+            <mesh position={[0, 0.47, -0.005]} scale={[0.225, 0.075, 0.115]} castShadow>
+              <sphereGeometry args={[1, 20, 12]} />
+              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
+            </mesh>
+            <mesh position={[0, 0.535, -0.085]} scale={[0.14, 0.085, 0.07]} castShadow>
+              <sphereGeometry args={[1, 16, 12]} />
+              <meshStandardMaterial color={HOODIE_DARK} roughness={0.95} map={fabricMap()} />
+            </mesh>
+            <mesh position={[0, 0.13, 0.1]} rotation={[-0.12, 0, 0]} scale={[0.11, 0.06, 0.02]}>
+              <sphereGeometry args={[1, 14, 8]} />
+              <meshStandardMaterial color={HOODIE_DARK} roughness={0.95} />
+            </mesh>
+            {[-0.035, 0.035].map((x) => (
+              <group key={x} position={[x, 0.43, 0.118]} rotation={[-0.2, 0, 0]}>
+                <mesh position={[0, -0.06, 0]}>
+                  <cylinderGeometry args={[0.004, 0.004, 0.12, 6]} />
+                  <meshStandardMaterial color="#ece6da" roughness={0.8} />
+                </mesh>
+                <mesh position={[0, -0.125, 0]}>
+                  <cylinderGeometry args={[0.006, 0.006, 0.018, 8]} />
+                  <meshStandardMaterial color="#cfc6b6" roughness={0.5} metalness={0.3} />
+                </mesh>
+              </group>
+            ))}
+            {/* Neck and head */}
+            <mesh position={[0, 0.58, 0.01]} castShadow>
+              <cylinderGeometry args={[0.048, 0.055, 0.1, 14]} />
+              <meshStandardMaterial color={SKIN} roughness={0.65} />
+            </mesh>
+            <group ref={head} position={[0, 0.62, 0.01]}>
+              <mesh position={[0, 0.13, 0.01]} scale={[0.112, 0.138, 0.124]} castShadow>
+                <sphereGeometry args={[1, 28, 20]} />
+                <meshStandardMaterial color={SKIN} roughness={0.62} />
+              </mesh>
+              {/* Jaw */}
+              <mesh position={[0, 0.06, 0.035]} scale={[0.085, 0.07, 0.09]}>
+                <sphereGeometry args={[1, 18, 12]} />
+                <meshStandardMaterial color={SKIN} roughness={0.62} />
+              </mesh>
+              {/* Short dark curly hair: a cap plus clustered curls */}
+              <mesh position={[0, 0.175, -0.005]} scale={[0.12, 0.11, 0.13]} castShadow>
+                <sphereGeometry args={[1, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
+                <meshStandardMaterial color={HAIR} roughness={0.95} />
+              </mesh>
+              {[[-0.06, 0.25, 0.07], [0, 0.265, 0.08], [0.06, 0.25, 0.07], [-0.085, 0.22, 0.02], [0.085, 0.22, 0.02], [-0.04, 0.275, 0.0], [0.04, 0.275, 0.0], [0, 0.27, -0.06], [-0.07, 0.24, -0.06], [0.07, 0.24, -0.06], [-0.03, 0.235, 0.105], [0.03, 0.235, 0.105]].map((position, index) => (
+                <mesh key={index} position={position} castShadow>
+                  <sphereGeometry args={[0.038, 10, 8]} />
+                  <meshStandardMaterial color={HAIR} roughness={0.95} />
+                </mesh>
+              ))}
+              {/* Ears, brows, eyes, nose */}
+              {[-1, 1].map((side) => (
+                <group key={side}>
+                  <mesh position={[side * 0.11, 0.12, 0.0]} scale={[0.02, 0.035, 0.025]}>
+                    <sphereGeometry args={[1, 10, 8]} />
+                    <meshStandardMaterial color="#b97f61" roughness={0.65} />
+                  </mesh>
+                  <mesh position={[side * 0.038, 0.135, 0.112]}>
+                    <sphereGeometry args={[0.012, 10, 8]} />
+                    <meshStandardMaterial color="#1a1410" roughness={0.3} />
+                  </mesh>
+                  <Block args={[0.035, 0.008, 0.01]} color={HAIR} position={[side * 0.04, 0.162, 0.112]} rotation={[0, 0, side * -0.12]} castShadow={false} />
+                </group>
+              ))}
+              <mesh position={[0, 0.1, 0.13]} scale={[0.016, 0.024, 0.02]}>
+                <sphereGeometry args={[1, 10, 8]} />
+                <meshStandardMaterial color="#b98063" roughness={0.6} />
+              </mesh>
+              <Block args={[0.04, 0.006, 0.006]} color="#8a4f3f" position={[0, 0.058, 0.118]} castShadow={false} />
+              {bubble && (
+                <Html position={[0, 0.5, 0]} center zIndexRange={[30, 0]} wrapperClass="box-tour-html">
+                  <span className="box-tour-cat-bubble" role="status">{bubble}</span>
+                </Html>
+              )}
+            </group>
+          </group>
+        </Interactive>
+        <group ref={mugInHand} visible={false}>
+          <Mug position={[0, 0, 0]} color="#e8e2d8" rotation={0} />
+        </group>
+      </group>
+      <group ref={hearts} visible={false}>
+        {[0, 1, 2].map((index) => (
+          <mesh key={index}>
+            <shapeGeometry args={[heartShape]} />
+            <meshBasicMaterial color="#e0607e" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+/* ---------- Knowledge graph hologram ---------- */
+
+const GRAPH_LABELS = ['JAZZ', 'Qline', 'AI agents', 'Automation', 'MCP', 'FlowPilot', 'Cortex', 'Chrauto', 'Web apps', 'Android', 'Make.com', 'Postgres', 'Kotlin', 'React'];
+
+function useGraph(count, radius, seed) {
+  return useMemo(() => {
+    const random = seeded(seed);
+    const nodes = [new THREE.Vector3(0, 0, 0)];
+    for (let i = 1; i < count; i += 1) {
+      // Fibonacci sphere, jittered, so nodes are spread evenly in a ball.
+      const y = 1 - (i / (count - 1)) * 2;
+      const r = Math.sqrt(1 - y * y);
+      const theta = i * 2.399963;
+      const scale = radius * (0.55 + random() * 0.45);
+      nodes.push(new THREE.Vector3(Math.cos(theta) * r * scale, y * scale * 0.8, Math.sin(theta) * r * scale));
+    }
+    const pairs = [];
+    nodes.forEach((node, index) => {
+      if (index === 0) return;
+      if (index < 9) pairs.push([0, index]);
+      const nearest = nodes.map((other, j) => [j, node.distanceTo(other)]).filter(([j]) => j !== index && j !== 0).sort((a, b) => a[1] - b[1]).slice(0, 2);
+      nearest.forEach(([j]) => { if (index < j) pairs.push([index, j]); });
+    });
+    const positions = new Float32Array(pairs.length * 6);
+    pairs.forEach(([a, b], k) => {
+      nodes[a].toArray(positions, k * 6);
+      nodes[b].toArray(positions, k * 6 + 3);
+    });
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return { nodes, geometry };
+  }, [count, radius, seed]);
+}
+
+function KnowledgeGraph({ radius = 0.55, count = 26, labels = true, seed = 7, groupRef, color = '#22b896' }) {
+  const { nodes, geometry } = useGraph(count, radius, seed);
+  const spin = useRef();
+  const pulse = useRef();
+  useFrame(({ clock }, delta) => {
+    if (spin.current) spin.current.rotation.y += delta * 0.25;
+    if (pulse.current) pulse.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 2.4) * 0.12);
+  });
+  return (
+    <group ref={groupRef}>
+      <group ref={spin}>
+        <lineSegments geometry={geometry}>
+          <lineBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} toneMapped={false} />
+        </lineSegments>
+        <Instances limit={count - 1} castShadow={false} receiveShadow={false}>
+          <sphereGeometry args={[1, 10, 8]} />
+          <meshBasicMaterial color="#3fe0bb" transparent opacity={0.95} depthWrite={false} toneMapped={false} />
+          {nodes.slice(1).map((node, index) => (
+            <Instance key={index} position={node} scale={index < 8 ? radius * 0.05 : radius * 0.03} />
+          ))}
+        </Instances>
+        <mesh ref={pulse}>
+          <sphereGeometry args={[radius * 0.09, 18, 14]} />
+          <meshBasicMaterial color="#ff9a55" transparent opacity={0.95} depthWrite={false} toneMapped={false} />
+        </mesh>
+        {labels && GRAPH_LABELS.map((label, index) => (
+          <Billboard key={label} position={nodes[index].clone().multiplyScalar(index === 0 ? 1 : 1.08).add(new THREE.Vector3(0, index === 0 ? 0.09 : 0.05, 0))}>
+            <Text font={FONT_MEDIUM} fontSize={index === 0 ? 0.075 : 0.052} color={index === 0 ? '#7a2e10' : '#0d3f35'} anchorX="center" anchorY="bottom" outlineWidth={0.006} outlineColor="#ffffff" fillOpacity={0.95}>
+              {label}
+            </Text>
+          </Billboard>
+        ))}
+      </group>
+      {/* Faint shell so the graph reads as a projection */}
+      <mesh>
+        <sphereGeometry args={[radius * 1.18, 32, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={0.07} depthWrite={false} side={THREE.BackSide} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ---------- Robot ---------- */
+
+const ROBOT_DOCK = new THREE.Vector3(1.75, 0, -0.2);
+const ROBOT_DOCK_HOVER = new THREE.Vector3(1.75, 0.72, -0.2);
+const ROBOT_PATH = [
+  new THREE.Vector3(1.5, 1.55, 1.7),
+  new THREE.Vector3(2.1, 1.75, -0.6),
+  new THREE.Vector3(0.9, 2.0, -1.7),
+  new THREE.Vector3(-0.4, 1.7, -0.1),
+  'help',
+  new THREE.Vector3(-0.9, 1.5, 1.6),
+  new THREE.Vector3(0.5, 1.35, 2.2),
+  new THREE.Vector3(1.75, 1.1, -0.2),
+  'help',
+];
+const ROBOT_HELP = new THREE.Vector3(-1.92, 1.68, 0.32);
+const ROBOT_ACCENT = '#6fe3c8';
+
+function DockPad() {
+  const ring = useRef();
+  const { phaseRef } = useRoom();
+  useFrame(({ clock }) => {
+    if (ring.current) ring.current.emissiveIntensity = (phaseRef.current === 'ai' ? 2.2 : 1.1) + Math.sin(clock.elapsedTime * 2) * 0.3;
+  });
+  return (
+    <group position={ROBOT_DOCK.toArray()}>
+      <mesh position={[0, 0.03, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.34, 0.37, 0.06, 40]} />
+        <meshStandardMaterial color="#e7e5e0" roughness={0.35} metalness={0.1} />
+      </mesh>
+      <mesh position={[0, 0.062, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.22, 0.25, 48]} />
+        <meshStandardMaterial ref={ring} color={ROBOT_ACCENT} emissive={ROBOT_ACCENT} emissiveIntensity={1.2} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.063, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.2, 40]} />
+        <meshStandardMaterial color="#2a2c30" roughness={0.4} metalness={0.4} />
+      </mesh>
+      <Text font={FONT_MEDIUM} position={[0, 0.034, 0.372]} fontSize={0.03} color="#6a645c" anchorX="center" anchorY="middle" letterSpacing={0.25}>
+        AI LAB · DOCK
+      </Text>
+    </group>
+  );
+}
+
+function Robot() {
+  const { reducedMotion, phaseRef, goTo } = useRoom();
+  const root = useRef();
+  const body = useRef();
+  const headRef = useRef();
+  const eyes = useRef();
+  const antenna = useRef();
+  const thruster = useRef();
+  const armL = useRef();
+  const armR = useRef();
+  const bigGraph = useRef();
+  const smallGraph = useRef();
+  const beam = useRef();
+  const shadow = useRef();
+  const shadowMap = useMemo(() => radialTexture([[0, 'rgba(40,34,30,0.45)'], [1, 'rgba(40,34,30,0)']]), []);
+  const state = useRef({ index: 0, wait: 0, mode: 'roam', helpT: 0, spin: 0, yaw: 0, velocity: new THREE.Vector3(), blink: 0, graph: 0, mini: 0 });
+
+  const onClick = useCallback(() => {
+    state.current.spin = 1;
+    getLofi()?.beep();
+    goTo('ai');
+  }, [goTo]);
+
+  useFrame(({ clock }, rawDelta) => {
+    const delta = Math.min(rawDelta, 0.1);
+    const s = state.current;
+    const time = clock.elapsedTime;
+    if (!root.current) return;
+    const position = root.current.position;
+    const stop = phaseRef.current;
+
+    // Pick the current target.
+    let target;
+    let hold = false;
+    if (stop === 'ai' || reducedMotion) {
+      s.mode = 'dock';
+      target = ROBOT_DOCK_HOVER;
+      hold = true;
+    } else {
+      if (s.mode === 'dock') { s.mode = 'roam'; s.index = 0; }
+      const step = ROBOT_PATH[s.index % ROBOT_PATH.length];
+      if (step === 'help') {
+        if (!actors.human.atDesk) { s.index += 1; target = position; } else { s.mode = 'help'; target = ROBOT_HELP; }
+      } else {
+        s.mode = 'roam';
+        target = step;
+      }
+    }
+
+    tmpA.subVectors(target, position);
+    const distance = tmpA.length();
+    const arrived = distance < 0.06;
+    if (!hold && arrived) {
+      s.wait += delta;
+      const pause = s.mode === 'help' ? 7 : 1.2;
+      if (s.wait > pause) { s.wait = 0; s.index += 1; }
+    }
+    // Smooth seek with a speed limit.
+    const maxSpeed = s.mode === 'dock' ? 1.1 : 0.55;
+    tmpB.copy(tmpA).normalize().multiplyScalar(Math.min(maxSpeed, distance * 1.6));
+    s.velocity.lerp(tmpB, 1 - Math.pow(0.02, delta));
+    if (reducedMotion) position.copy(target);
+    else position.addScaledVector(s.velocity, delta);
+    const bob = reducedMotion ? 0 : Math.sin(time * 2.1) * 0.035;
+
+    // Face the direction of travel, or the person while helping, or the viewer at the dock.
+    let desiredYaw = s.yaw;
+    if (s.velocity.lengthSq() > 0.01) desiredYaw = Math.atan2(s.velocity.x, s.velocity.z);
+    if (arrived && s.mode === 'help') desiredYaw = Math.atan2(actors.human.head.x - position.x, actors.human.head.z - position.z);
+    if (s.mode === 'dock' && distance < 0.3) desiredYaw = 0.3;
+    s.yaw = angleLerp(s.yaw, desiredYaw, 1 - Math.pow(0.02, delta));
+    s.spin = Math.max(0, s.spin - delta * 0.9);
+    root.current.rotation.y = s.yaw + (s.spin > 0 ? smooth(1 - s.spin) * Math.PI * 2 : 0);
+    if (body.current) {
+      body.current.position.y = bob;
+      // Lean into the motion.
+      tmpC.copy(s.velocity).applyAxisAngle(UP, -s.yaw);
+      body.current.rotation.x = THREE.MathUtils.clamp(tmpC.z * 0.35, -0.3, 0.3);
+      body.current.rotation.z = THREE.MathUtils.clamp(-tmpC.x * 0.35, -0.3, 0.3);
+    }
+    if (headRef.current) headRef.current.rotation.y = Math.sin(time * 0.7) * 0.25 * (s.mode === 'roam' ? 1 : 0.3);
+    // Blink.
+    s.blink -= delta;
+    if (s.blink < -3.2) s.blink = 0.14;
+    if (eyes.current) eyes.current.scale.y = s.blink > 0 ? 0.15 : 1;
+    if (antenna.current) antenna.current.emissiveIntensity = 1.5 + Math.sin(time * 4) * 0.8;
+    if (thruster.current) {
+      thruster.current.scale.set(1, 0.85 + Math.sin(time * 22) * 0.08 + s.velocity.length() * 0.4, 1);
+      thruster.current.material.opacity = 0.55 + Math.sin(time * 18) * 0.08;
+    }
+    const helping = s.mode === 'help' && arrived;
+    actors.robot.helping = helping;
+    actors.robot.position.copy(position);
+    if (armL.current) armL.current.rotation.x = helping ? -1.1 + Math.sin(time * 3) * 0.08 : Math.sin(time * 1.6) * 0.15;
+    if (armR.current) armR.current.rotation.x = Math.sin(time * 1.6 + 1) * 0.15;
+
+    // Holograms: a big knowledge graph at the dock, a small one when helping at the desk.
+    const docked = s.mode === 'dock' && distance < 0.25;
+    s.graph += ((docked ? 1 : 0) - s.graph) * (1 - Math.pow(0.03, delta));
+    s.mini += ((helping ? 1 : 0) - s.mini) * (1 - Math.pow(0.02, delta));
+    if (bigGraph.current) {
+      bigGraph.current.visible = s.graph > 0.02;
+      bigGraph.current.scale.setScalar(Math.max(0.001, easeOutBack(Math.min(1, s.graph))));
+      bigGraph.current.position.set(position.x, position.y + 1.2 + bob, position.z);
+    }
+    if (beam.current) {
+      beam.current.visible = s.graph > 0.02;
+      beam.current.material.opacity = 0.13 * s.graph;
+      beam.current.position.set(position.x, position.y + 0.7 + bob, position.z);
+      beam.current.scale.set(s.graph, s.graph, s.graph);
+    }
+    if (smallGraph.current) {
+      smallGraph.current.visible = s.mini > 0.02;
+      tmpC.subVectors(actors.human.head, position).multiplyScalar(0.45).add(position);
+      smallGraph.current.position.set(tmpC.x, position.y + 0.12, tmpC.z);
+      smallGraph.current.scale.setScalar(Math.max(0.001, s.mini));
+    }
+    if (shadow.current) {
+      shadow.current.position.set(position.x, 0.02, position.z);
+      const height = position.y;
+      shadow.current.scale.setScalar(0.5 + height * 0.15);
+      shadow.current.material.opacity = THREE.MathUtils.clamp(1.2 - height * 0.35, 0.15, 0.8);
+    }
+    if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.robot = { mode: s.mode, x: +position.x.toFixed(2), y: +position.y.toFixed(2), z: +position.z.toFixed(2), graph: +s.graph.toFixed(2) };
+  });
+
+  const shell = <meshPhysicalMaterial color="#f1f1ee" roughness={0.28} metalness={0.05} clearcoat={0.8} clearcoatRoughness={0.25} />;
+  return (
+    <group>
+      <DockPad />
+      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={shadowMap} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      <group ref={root} position={ROBOT_PATH[0].toArray()}>
+        <Interactive label="Ask the AI assistant" onSelect={onClick} labelOffset={[0, 0.75, 0]}>
+          <group ref={body}>
+            {/* Capsule body with a glowing waist ring */}
+            <mesh castShadow>
+              <capsuleGeometry args={[0.13, 0.12, 8, 24]} />
+              {shell}
+            </mesh>
+            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+              <torusGeometry args={[0.133, 0.011, 10, 40]} />
+              <meshStandardMaterial color={ROBOT_ACCENT} emissive={ROBOT_ACCENT} emissiveIntensity={1.6} toneMapped={false} />
+            </mesh>
+            {/* Chest panel */}
+            <mesh position={[0, 0.03, 0.128]} rotation={[0, 0, 0]}>
+              <circleGeometry args={[0.035, 24]} />
+              <meshStandardMaterial color="#20262a" emissive={ROBOT_ACCENT} emissiveIntensity={0.35} roughness={0.3} />
+            </mesh>
+            {/* Arms */}
+            {[[armL, 1], [armR, -1]].map(([ref, side]) => (
+              <group key={side} ref={ref} position={[side * 0.15, 0.06, 0]}>
+                <mesh position={[side * 0.02, -0.07, 0.01]} rotation={[0, 0, side * 0.18]} castShadow>
+                  <capsuleGeometry args={[0.028, 0.1, 6, 12]} />
+                  {shell}
+                </mesh>
+              </group>
+            ))}
+            {/* Head with visor face */}
+            <group ref={headRef} position={[0, 0.3, 0]}>
+              <RoundedBox args={[0.3, 0.21, 0.24]} radius={0.075} smoothness={4} castShadow>
+                {shell}
+              </RoundedBox>
+              <RoundedBox args={[0.25, 0.135, 0.02]} radius={0.05} smoothness={3} position={[0, -0.002, 0.115]}>
+                <meshPhysicalMaterial color="#101418" roughness={0.12} metalness={0.4} clearcoat={1} />
+              </RoundedBox>
+              <group ref={eyes} position={[0, 0.0, 0.127]}>
+                {[-0.055, 0.055].map((x) => (
+                  <mesh key={x} position={[x, 0, 0]}>
+                    <capsuleGeometry args={[0.016, 0.022, 4, 10]} />
+                    <meshBasicMaterial color="#9ff7e3" toneMapped={false} />
+                  </mesh>
+                ))}
+              </group>
+              {[-1, 1].map((side) => (
+                <group key={side} position={[side * 0.152, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <mesh>
+                    <cylinderGeometry args={[0.045, 0.045, 0.03, 24]} />
+                    <meshStandardMaterial color="#d9dbdc" roughness={0.3} metalness={0.3} />
+                  </mesh>
+                  <mesh position={[0, side * 0.016, 0]}>
+                    <torusGeometry args={[0.03, 0.006, 8, 24]} />
+                    <meshStandardMaterial color={ROBOT_ACCENT} emissive={ROBOT_ACCENT} emissiveIntensity={1.2} toneMapped={false} />
+                  </mesh>
+                </group>
+              ))}
+              <mesh position={[0.06, 0.15, 0]}>
+                <cylinderGeometry args={[0.005, 0.006, 0.1, 8]} />
+                <meshStandardMaterial color="#9a9da2" metalness={0.8} roughness={0.3} />
+              </mesh>
+              <mesh position={[0.06, 0.205, 0]}>
+                <sphereGeometry args={[0.018, 14, 10]} />
+                <meshStandardMaterial ref={antenna} color="#ffb37a" emissive="#ff9a55" emissiveIntensity={1.5} toneMapped={false} />
+              </mesh>
+            </group>
+            {/* Hover ring and thruster glow */}
+            <mesh position={[0, -0.22, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.075, 0.012, 10, 32]} />
+              <meshStandardMaterial color="#c9cbcf" metalness={0.7} roughness={0.25} />
+            </mesh>
+            <mesh ref={thruster} position={[0, -0.3, 0]} rotation={[Math.PI, 0, 0]}>
+              <coneGeometry args={[0.06, 0.16, 20, 1, true]} />
+              <meshBasicMaterial color={ROBOT_ACCENT} transparent opacity={0.55} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+            </mesh>
+            {/* Invisible, generous hit area */}
+            <mesh position={[0, 0.1, 0]}>
+              <sphereGeometry args={[0.32, 10, 8]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+          </group>
+        </Interactive>
+      </group>
+      {/* Projector beam and holograms live in room space so they don't spin with the robot */}
+      <mesh ref={beam} visible={false}>
+        <cylinderGeometry args={[0.5, 0.06, 0.95, 32, 1, true]} />
+        <meshBasicMaterial color={ROBOT_ACCENT} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
+      <KnowledgeGraph groupRef={bigGraph} radius={0.58} count={28} />
+      <KnowledgeGraph groupRef={smallGraph} radius={0.16} count={14} labels={false} seed={3} />
+    </group>
+  );
+}
+
+/* ---------- Extra furnishing for realism ---------- */
+
+function Curtain({ x, width = 0.36, height = 1.55 }) {
+  const geometry = useMemo(() => {
+    const plane = new THREE.PlaneGeometry(width, height, 28, 1);
+    const positions = plane.attributes.position;
+    for (let i = 0; i < positions.count; i += 1) {
+      const px = positions.getX(i);
+      positions.setZ(i, Math.sin((px / width) * Math.PI * 7) * 0.022);
+    }
+    plane.computeVertexNormals();
+    return plane;
+  }, [width, height]);
+  return (
+    <mesh geometry={geometry} position={[x, -0.08, 0.12]} castShadow receiveShadow>
+      <meshStandardMaterial color="#efe6d6" roughness={0.95} map={fabricMap()} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+function WindowCurtains() {
+  // Mounted in the window's local frame (see Workstation): x runs along the wall, z points into the room.
+  return (
+    <group position={[-S + 0.03, 2.05, 1.95]} rotation={[0, Math.PI / 2, 0]}>
+      <mesh position={[0, 0.74, 0.14]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.012, 0.012, 1.9, 10]} />
+        <meshStandardMaterial color={palette.brass} metalness={0.7} roughness={0.35} />
+      </mesh>
+      {[-0.96, 0.96].map((x) => (
+        <mesh key={x} position={[x, 0.74, 0.14]}>
+          <sphereGeometry args={[0.022, 12, 10]} />
+          <meshStandardMaterial color={palette.brass} metalness={0.7} roughness={0.35} />
+        </mesh>
+      ))}
+      <Curtain x={-0.8} />
+      <Curtain x={0.8} />
+    </group>
+  );
+}
+
+function FloorLamp() {
+  const { lightRef, nightRef } = useRoom();
+  const shade = useRef();
+  const glow = useRef();
+  const [x, z] = couchToRoom(0.92, -0.42);
+  useFrame(() => {
+    const on = lightRef.current.value;
+    if (shade.current) shade.current.emissiveIntensity = 0.05 + on * (0.25 + nightRef.current.value * 0.45);
+    if (glow.current) glow.current.intensity = on * (0.25 + nightRef.current.value * 1.1);
+  });
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 0.015, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.16, 0.17, 0.03, 32]} />
+        <meshStandardMaterial color={palette.metal} metalness={0.6} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.8, 0]} castShadow>
+        <cylinderGeometry args={[0.012, 0.012, 1.58, 10]} />
+        <meshStandardMaterial color={palette.brass} metalness={0.75} roughness={0.3} />
+      </mesh>
+      <mesh position={[0, 1.66, 0]} castShadow>
+        <cylinderGeometry args={[0.15, 0.22, 0.26, 32, 1, true]} />
+        <meshStandardMaterial ref={shade} color="#f3eadb" emissive="#ffd9a3" emissiveIntensity={0.3} roughness={0.9} side={THREE.DoubleSide} map={fabricMap()} />
+      </mesh>
+      <pointLight ref={glow} position={[0, 1.6, 0]} intensity={0.4} distance={2.6} decay={2} color="#ffcf94" />
+    </group>
+  );
+}
+
+function SideTable() {
+  const [x, z] = couchToRoom(0.95, 0.05);
+  return (
+    <group position={[x, 0, z]} rotation={[0, COUCH.yaw, 0]}>
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.03, 32]} />
+        <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAcross()} />
+      </mesh>
+      {[0, 1, 2].map((leg) => {
+        const angle = (leg / 3) * Math.PI * 2;
+        return (
+          <mesh key={leg} position={[Math.cos(angle) * 0.13, 0.25, Math.sin(angle) * 0.13]} rotation={[Math.sin(angle) * 0.1, 0, -Math.cos(angle) * 0.1]} castShadow>
+            <cylinderGeometry args={[0.012, 0.009, 0.5, 8]} />
+            <meshStandardMaterial color={palette.metal} metalness={0.5} roughness={0.4} />
+          </mesh>
+        );
+      })}
+      <Book position={[-0.03, 0.535, 0.03]} size={[0.2, 0.04, 0.15]} color="#3d5a80" />
+      <Book position={[-0.02, 0.575, 0.03]} size={[0.18, 0.035, 0.13]} color="#c4704e" />
+      <Plant position={[0.08, 0.515, -0.07]} scale={0.32} pot="#e9e3da" />
+    </group>
+  );
+}
+
 function RoomScene(props) {
   const sky = useMemo(() => (
     <>
@@ -2876,8 +4214,11 @@ export default function ScrollRoomPortfolio() {
   }, [goToStep]);
   const stepBy = useCallback((direction) => goToStep(tourRef.current.to + direction), [goToStep]);
 
+  // The stop the tour is at or heading to, readable from inside the 3D scene without re-rendering it.
+  const phaseRef = useRef('intro');
+  useEffect(() => { phaseRef.current = STEPS[step].id; }, [step]);
   const room = useMemo(
-    () => ({ goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight, nightRef, lightRef }),
+    () => ({ goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight, nightRef, lightRef, phaseRef }),
     [goTo, rgbMode, cycleRgb, reducedMotion, theme, toggleTheme, lightOn, toggleLight],
   );
 
@@ -3003,6 +4344,38 @@ export default function ScrollRoomPortfolio() {
     };
   }, [goToStep, stepBy]);
 
+  // Generated lo-fi: M toggles it, and it stops when the tab is hidden or the page is left.
+  const musicPlaying = useLofiPlaying();
+  useEffect(() => {
+    const onKey = (event) => {
+      if (isTypingTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'm' || event.key === 'M') getLofi()?.toggle();
+    };
+    const onHidden = () => { if (document.hidden) getLofi()?.stop(); };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('visibilitychange', onHidden);
+      getLofi()?.stop();
+    };
+  }, []);
+
+  // A one-time hint that the view can be dragged at a stop.
+  const [lookHint, setLookHint] = useState(false);
+  useEffect(() => {
+    if (phase !== 'display' || reducedMotion) return undefined;
+    try { if (window.localStorage.getItem('box-tour-look-hint')) return undefined; } catch { /* storage unavailable */ }
+    setLookHint(true);
+    const done = () => {
+      setLookHint(false);
+      try { window.localStorage.setItem('box-tour-look-hint', '1'); } catch { /* storage unavailable */ }
+    };
+    const timer = window.setTimeout(done, 4500);
+    window.addEventListener('tour:look', done);
+    return () => { window.clearTimeout(timer); window.removeEventListener('tour:look', done); setLookHint(false); };
+  }, [phase, reducedMotion]);
+
   // Keyboard project navigation while the computer is in view.
   useEffect(() => {
     if (phase !== 'computer') return undefined;
@@ -3061,10 +4434,25 @@ export default function ScrollRoomPortfolio() {
 
       <TourProgress step={step} travel={travel} onStep={stepBy} />
 
+      <AnimatePresence>
+        {musicPlaying && (
+          <motion.div key="music" className="box-tour-music" role="status" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.25 }}>
+            <span className="box-tour-eq" aria-hidden="true"><i /><i /><i /></span>
+            <span>Now playing <small>lo-fi · generated live</small></span>
+            <button type="button" onClick={() => getLofi()?.stop()} aria-label="Stop the music" title="Stop (M)"><Pause size={15} weight="fill" /></button>
+          </motion.div>
+        )}
+        {lookHint && (
+          <motion.p key="look" className="box-tour-look-hint" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <HandGrabbing size={16} weight="bold" /> Drag to look around
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait" initial={false}>
         {phase === 'overview' && (
           <motion.p key="tip" className="box-tour-tip" role="status" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.3 }}>
-            Tip: hover or tap things in the room. Try the sun, the wall lamp, the PC, the record, and the cat.
+            Tip: hover or tap things in the room. Say hi to me at the desk, ask the robot, pet the cat, or play the record for some lo-fi. Drag to look around at any stop.
           </motion.p>
         )}
         {phase === 'display' && (
@@ -3102,7 +4490,7 @@ export default function ScrollRoomPortfolio() {
               {project.stack.map((item) => <li key={item}>{item}</li>)}
             </ul>
             <div className="box-tour-actions">
-              <Link href={project.href}>Project details <ArrowUpRight size={15} weight="bold" /></Link>
+              <a href={project.href} target="_blank" rel="noopener noreferrer">More info <ArrowUpRight size={15} weight="bold" /></a>
               {project.github && <a href={project.github} target="_blank" rel="noreferrer"><GithubLogo size={16} /> GitHub</a>}
               {project.live && <a href={project.live} target="_blank" rel="noreferrer">Live demo <ArrowUpRight size={15} /></a>}
             </div>
@@ -3111,7 +4499,39 @@ export default function ScrollRoomPortfolio() {
                 <span className={`box-tour-rgb-dot is-${rgbMode}`} aria-hidden="true" /> PC lighting: {RGB_LABELS[rgbMode]}
               </button>
             </div>
-            <p className="box-tour-hint">Use the arrows beside the monitor, your left and right arrow keys, or click the screen. University and team projects are in the <Link href="/projects">project archive</Link>.</p>
+            <p className="box-tour-hint">Use the arrows beside the monitor or your left and right arrow keys. Click the screen or More info for the full write-up on my <a href={MAIN_PORTFOLIO} target="_blank" rel="noopener noreferrer">main portfolio</a>.</p>
+          </ContextCard>
+        )}
+        {phase === 'journey' && (
+          <ContextCard key="journey" side="left" tag="Experience" tagColor={palette.brass} labelledBy="card-journey">
+            <h2 id="card-journey">From the HR office to shipping AI systems.</h2>
+            <p>The gallery wall tells the short version: a degree, real admin and operations work, and the flagship project I built along the way.</p>
+            <ol className="box-tour-timeline">
+              {journey.map((item) => (
+                <li key={item.role}>
+                  <span>{item.period}</span>
+                  <strong>{item.role}</strong>
+                  <em>{item.place}</em>
+                  <p>{item.detail}</p>
+                </li>
+              ))}
+            </ol>
+            <a className="box-tour-archive-link" href={`${MAIN_PORTFOLIO}/about`} target="_blank" rel="noopener noreferrer">Full background on my main portfolio <ArrowUpRight size={15} weight="bold" /></a>
+          </ContextCard>
+        )}
+        {phase === 'ai' && (
+          <ContextCard key="ai" side="left" tag="AI lab" tagColor="#3fbf9b" labelledBy="card-ai">
+            <h2 id="card-ai">AI that asks before it acts.</h2>
+            <p>The robot is projecting my knowledge graph: how my AI projects and tools connect. Everything I build with agents keeps a person in charge of the important steps.</p>
+            <ul className="box-tour-areas">
+              {aiLab.map((item) => (
+                <li key={item.slug}>
+                  <strong><a href={`${MAIN_PORTFOLIO}/projects#${item.slug}`} target="_blank" rel="noopener noreferrer">{item.title} <ArrowUpRight size={13} weight="bold" /></a></strong>
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="box-tour-hint">Click the robot any time to come back here. It also flies over to help at the desk.</p>
           </ContextCard>
         )}
         {phase === 'notes' && (

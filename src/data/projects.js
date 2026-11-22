@@ -1,3 +1,7 @@
+// The main (non-3D) portfolio. "More info" links send visitors to the matching card there.
+export const MAIN_PORTFOLIO = 'https://jazz-portfolio1.vercel.app';
+export const mainPortfolioProject = (slug) => `${MAIN_PORTFOLIO}/projects#${slug}`;
+
 // Single source of truth for project content. The 3D room shows a curated subset (roomProjects);
 // the /projects archive shows everything, grouped. Keep claims tied to each project's README.
 
@@ -358,4 +362,4 @@ export const roomProjects = [
   { slug: 'speedsight', title: 'SpeedSight', type: 'Computer vision / traffic analytics', stack: ['React', 'TypeScript', 'TensorFlow.js'], summary: 'A browser-based traffic dashboard for vehicle detection, tracking, estimated speeds, and session analytics. Speed estimates are not certified for enforcement.', color: '#5b86c9', github: 'https://github.com/jazsajonia-pixel/Project-2-SpeedSight2', live: 'https://project-2-speed-sight2.vercel.app/' },
   { slug: 'sapphire', title: 'Sapphire', type: 'Markdown vault with GitHub sync', stack: ['Flutter', 'Dart', 'Android'], summary: 'A local-first Android Markdown notes app with links, backlinks, search, a knowledge graph, and automatic two-way GitHub sync.', color: '#4f78c9', github: 'https://github.com/jazsajonia-pixel/sapphire' },
   { slug: 'petalbound', title: 'Petalbound', type: 'Offline pixel-art action adventure', stack: ['Godot 4', 'GDScript', 'Android'], summary: 'A landscape Godot adventure with exploration, quests, guardian fights, crafting, and touch controls.', color: '#6fa86b', github: 'https://github.com/jazsajonia-pixel/petalbound-godot' },
-].map((project) => ({ ...project, href: `/projects#${project.slug}` }));
+].map((project) => ({ ...project, href: mainPortfolioProject(project.slug) }));
