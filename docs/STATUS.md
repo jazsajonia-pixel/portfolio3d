@@ -1,5 +1,20 @@
 # Portfolio3D status
 
+## 2026-11-22: professional room refresh and new projects (`refine/pro-room-and-projects`)
+
+| Area | Status |
+| --- | --- |
+| Palette and materials | Saturated orange and pastel toy colours replaced with a studio palette: sand backdrop (`#e9dccb`), warm plaster walls with a subtle canvas texture, walnut and oak wood grain, sage fabric, black steel, brass, terracotta accent (`#c4572e`). Night is deep navy (`#121828`). A soft Lightformer environment adds reflections (dimmed at night); shadow maps are 2048. |
+| Objects | Display wall: brass-trimmed name lettering, turntable with tonearm on a slatted walnut credenza, labelled shelves (books with spine titles, mini server with LEDs, phone on a stand showing Qline, graduation cap, controller), wall clock, tall plant. Workstation: walnut desk on a steel frame, slim black monitor on an aluminium stand, aluminium keyboard, studio speaker, charcoal PC with muted RGB, ceramic mug, ergonomic chair with armrests and five-star base, linen "Now shipping" pinboard with project cards. Notes table: oak/walnut top, leather notebook ("BUILD NOTES"), muted sticky notes, charcoal pencil cup, poufs. Black metal wall sconce, sage couch, sage window shutters, "JAZZ SAJONIA" plaque on the closed box. |
+| Photo | Jazz's graduation photo (`public/room/profile.jpg`, from `profile.jpg` in Drive) hangs in a walnut frame on the display wall next to the BS IT diploma. |
+| Projects | One data file (`src/data/projects.js`) now feeds both the room monitor (14 projects) and the archive (23). New: Qline (featured; public repo and project site), Unified Connector (live site, private repo), TaskFlow (GitHub only; its live demo returned 500 when checked), EdgeFlow, Vyntra, Spatial Workspace. OmniDesk is left out because its API was unhealthy. |
+| Monitor | Browser-style dark UI with stack pills, a progress row, and the real Qline icon for Qline. |
+| `/projects`, `/about`, `/services`, `/contact` | Shared `SiteShell` (header, back-to-room link, footer) on light sand. Archive has a featured Qline hero, sticky group chips, muted accent panels, and "Private repository · demo on request" for private work. |
+| Cards and UI | Rounded cards with a soft shadow (no offset orange shadow, rotated tag or paperclip), pill eyebrows, dark-on-sand welcome text with a small eyebrow, SVG favicon. |
+| Lint / build | `npm run lint` (only the existing `no-img-element` warnings) and `npm run build` pass. Screenshots in `docs/review/pro-room-*.jpg` and `pro-projects-page.jpg`. |
+| Performance | Headless software rendering runs at about 1.5 fps, so cards appear late in those screenshots; frame rate on real GPUs and phones has not been measured. |
+| Real phone review | Not tested on a physical phone. |
+
 ## 2026-10-31: content refresh from Jazz's current resume (`feat/resume-automation-refresh`)
 
 | Area | Status |

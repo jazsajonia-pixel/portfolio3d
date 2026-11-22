@@ -1,6 +1,6 @@
 export default function AnimatedProjectPreview({ src, alt, className = '' }) {
   return (
-    <div className={`relative aspect-[8/5] w-full overflow-hidden bg-slate-950 ${className}`}>
+    <div className={`relative aspect-[8/5] w-full overflow-hidden bg-[#1d1b19] ${className}`}>
       <img
         src={src}
         alt={alt}
