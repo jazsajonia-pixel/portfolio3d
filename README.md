@@ -1,6 +1,6 @@
 # Portfolio3D
 
-An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature box. Scrolling turns the box to a corner, opens the lid and front panels, and tours the room inside: a display/shelf wall, a computer workstation, and a central notes table.
+An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature box. Scrolling turns the box to a corner, opens the lid and front panels, and tours the room inside: a display/shelf wall, a gallery wall, a computer workstation, an AI lab with a helper robot, and a central notes table. A person works at the desk, takes coffee breaks and pets the cat.
 
 ## Current status
 
@@ -14,7 +14,8 @@ An interactive 3D portfolio for Jazz Sajonia that starts as a closed miniature b
 | Lint / production build | Pass locally (only the archive's existing `no-img-element` warnings) |
 | Real phone scroll feel and frame rate | Not tested |
 | Professional palette, new objects, profile photo, Qline and five other new projects, themed `/projects` page | Implemented on `refine/pro-room-and-projects`; see `docs/STATUS.md` |
-| Production deployment | Unchanged until the open PR is approved and merged |
+| Living room: person at the desk, helper robot with a knowledge-graph hologram, gable roof, Experience and AI lab stops, drag-to-look, generated lo-fi on the record, More info → main portfolio | Implemented on `feat/living-room-robot`; see `docs/STATUS.md` |
+| Production deployment | https://jaz-space.vercel.app (auto-deploys from `main`) |
 
 ## Stack
 
