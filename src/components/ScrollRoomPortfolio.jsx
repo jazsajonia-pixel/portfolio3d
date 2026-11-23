@@ -1,13 +1,22 @@
 'use client';
 
 import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
-import { Billboard, Environment, Html, Instance, Instances, Lightformer, RoundedBox, Text, Trail, useTexture } from '@react-three/drei';
+import { Billboard, Environment, Html, Instance, Instances, Lightformer, PerformanceMonitor, RoundedBox, Text, Trail, useTexture } from '@react-three/drei';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Envelope, GithubLogo, HandGrabbing, Lightbulb, LinkedinLogo, MapPin, Moon, Pause, Phone, Sun } from 'phosphor-react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Browser, Envelope, GithubLogo, HandGrabbing, Lightbulb, LinkedinLogo, MapPin, Moon, Pause, Phone, Sun } from 'phosphor-react';
 import * as THREE from 'three';
 import { getLofi } from '@/lib/lofi';
+import {
+  palette, seeded, makeCanvasTexture, woodAlong, woodAcross, shingleMap, brickMap, plasterMap, fabricMap,
+  Block, Book, RoomContext, useRoom, Interactive, Mug, angleLerp, actors,
+} from './room/core';
+import { Model } from './room/models';
+import Cat from './room/Cat';
+import Human, { DESK_TOP, MOUSE_HOME, MUG_HOME } from './room/Human';
+import { EDITOR_SIZE, createEditorState, drawEditor, stepEditor } from './room/vscode';
+import { Bed, Nightstand, PbrSurfaces, Posters, ReadingCorner, Rug, ClaudePlush } from './room/Bedroom';
 import { MAIN_PORTFOLIO, projects as allProjects, roomProjects as projects } from '@/data/projects';
 
 /* ------------------------------------------------------------------ */
@@ -113,26 +122,6 @@ const FINAL_YAW = -Math.PI / 4; // the open corner faces the viewer
 const START_YAW = 0.42;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-// A calm, materials-first palette: warm limewash walls, walnut joinery, oak floor, charcoal metal and a single
-// terracotta accent. Colours are chosen so the room still reads as one object from the overview.
-const palette = {
-  plaster: '#efe8de',
-  plasterShade: '#e5ddd1',
-  timber: '#8d5d3b',
-  timberDark: '#5e3b25',
-  floorA: '#c99d70',
-  floorB: '#bf9266',
-  base: '#e8e0d4',
-  lid: '#c4603a',
-  rug: '#d8ccb7',
-  ink: '#23201d',
-  accent: '#c4572e',
-  metal: '#2a2a2d',
-  steel: '#8e9096',
-  brass: '#b88d4e',
-  linen: '#f6f1e8',
-  sage: '#7f8b70',
-};
 
 // Convert a room-local point into world space for the opened box.
 function toWorld([x, y, z]) {
@@ -151,10 +140,10 @@ function dirToWorld([x, y, z]) {
 const STOPS = {
   box: { look: new THREE.Vector3(0, 0.55, 0), dir: new THREE.Vector3(0, 0.36, 1).normalize(), w: 11.5, h: 10.4, wp: 10.2, hp: 10.6, card: 'none', lift: 0.07 },
   overview: { look: new THREE.Vector3(0, -0.15, 0), dir: new THREE.Vector3(0, 0.52, 1).normalize(), w: 9.4, h: 7.2, wp: 9.8, hp: 7.2, card: 'none', lift: 0 },
-  display: { look: toWorld([0.75, 1.95, -3]), dir: dirToWorld([0.16, 0.1, 1]), w: 4.3, h: 2.9, wp: 2.5, hp: 2.7, card: 'left', lift: 0, lookPortrait: toWorld([0.25, 2.1, -3]) },
-  computer: { look: toWorld([-3, 1.3, 0.2]), dir: dirToWorld([1, 0.22, 0.05]), w: 4.1, h: 2.5, wp: 2.55, hp: 2.3, card: 'right', lift: 0, lookPortrait: toWorld([-3, 1.55, -0.3]) },
-  journey: { look: toWorld([2.04, 1.82, -3]), dir: dirToWorld([-0.12, 0.08, 1]), w: 2.2, h: 1.55, wp: 1.75, hp: 1.6, card: 'left', lift: 0 },
-  ai: { look: toWorld([1.75, 1.5, -0.2]), dir: dirToWorld([0.25, 0.16, 1]), w: 2.4, h: 3.4, wp: 1.9, hp: 3.2, card: 'left', lift: 0 },
+  display: { look: toWorld([1.0, 1.75, -3]), dir: dirToWorld([0.1, 0.16, 1]), w: 4.0, h: 2.7, wp: 2.5, hp: 2.7, card: 'left', lift: 0, lookPortrait: toWorld([0.25, 2.1, -3]) },
+  computer: { look: toWorld([-2.95, 1.12, -0.05]), dir: dirToWorld([1, 0.2, 0.04]), w: 3.1, h: 1.95, wp: 2.55, hp: 2.3, card: 'right', lift: 0, lookPortrait: toWorld([-3, 1.55, -0.3]) },
+  journey: { look: toWorld([-2.1, 2.2, -3]), dir: dirToWorld([0.15, 0.08, 1]), w: 2.0, h: 1.45, wp: 1.75, hp: 1.6, card: 'left', lift: 0 },
+  ai: { look: toWorld([2.25, 1.5, 1.8]), dir: dirToWorld([0.25, 0.16, 1]), w: 2.4, h: 3.4, wp: 1.9, hp: 3.2, card: 'left', lift: 0 },
   outro: { look: new THREE.Vector3(0, -0.35, 0), dir: new THREE.Vector3(0.12, 0.5, 1).normalize(), w: 8.6, h: 6.6, wp: 9.6, hp: 7.4, card: 'left', lift: 0 },
   notes: { look: toWorld([0.75, 0.5, 0.85]), dir: dirToWorld([0.55, 0.95, 0.75]), w: 2.5, h: 1.8, wp: 2.25, hp: 1.9, card: 'left', lift: 0 },
 };
@@ -173,7 +162,10 @@ const KEYFRAMES = [
 const FOV = 38;
 const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 
-function frameStop(stop, width, height) {
+const makeFrame = () => ({ position: new THREE.Vector3(), look: new THREE.Vector3(), shiftX: 0, shiftY: 0 });
+
+// Writes the camera framing for `stop` into `out` (no allocation: this runs every frame).
+function frameStop(stop, width, height, out = makeFrame()) {
   const aspect = width / height;
   const portrait = aspect < 0.95;
   // Fraction of the screen left free next to (or above) the information card.
@@ -194,12 +186,11 @@ function frameStop(stop, width, height) {
   const h = portrait ? stop.hp : stop.h;
   const distance = Math.max(w / (2 * TAN * aspect * freeW), h / (2 * TAN * freeH));
   const look = portrait && stop.lookPortrait ? stop.lookPortrait : stop.look;
-  return {
-    position: look.clone().addScaledVector(stop.dir, distance),
-    look: look.clone(),
-    shiftX,
-    shiftY,
-  };
+  out.position.copy(look).addScaledVector(stop.dir, distance);
+  out.look.copy(look);
+  out.shiftX = shiftX;
+  out.shiftY = shiftY;
+  return out;
 }
 
 // Is the tour resting at a stop (not the welcome screen, not travelling)?
@@ -261,6 +252,7 @@ function CameraTour({ progressRef, reducedMotion }) {
     return () => media.removeEventListener('change', update);
   }, []);
 
+  const frames = useMemo(() => ({ a: makeFrame(), b: makeFrame(), target: makeFrame() }), []);
   useFrame((_, delta) => {
     const p = progressRef.current.smooth;
     let index = 0;
@@ -268,18 +260,20 @@ function CameraTour({ progressRef, reducedMotion }) {
     const a = KEYFRAMES[index];
     const b = KEYFRAMES[index + 1];
     const blend = easeInOut(range(p, a.at, b.at));
-    const fa = frameStop(STOPS[a.stop], size.width, size.height);
-    const fb = a.stop === b.stop ? fa : frameStop(STOPS[b.stop], size.width, size.height);
-
-    const target = {
-      position: fa.position.clone().lerp(fb.position, blend),
-      look: fa.look.clone().lerp(fb.look, blend),
-      shiftX: THREE.MathUtils.lerp(fa.shiftX, fb.shiftX, blend),
-      shiftY: THREE.MathUtils.lerp(fa.shiftY, fb.shiftY, blend),
-    };
+    const fa = frameStop(STOPS[a.stop], size.width, size.height, frames.a);
+    const fb = a.stop === b.stop ? fa : frameStop(STOPS[b.stop], size.width, size.height, frames.b);
+    const target = frames.target;
+    target.position.copy(fa.position).lerp(fb.position, blend);
+    target.look.copy(fa.look).lerp(fb.look, blend);
+    target.shiftX = THREE.MathUtils.lerp(fa.shiftX, fb.shiftX, blend);
+    target.shiftY = THREE.MathUtils.lerp(fa.shiftY, fb.shiftY, blend);
 
     if (!current.current || reducedMotion) {
-      current.current = target;
+      current.current = current.current || makeFrame();
+      current.current.position.copy(target.position);
+      current.current.look.copy(target.look);
+      current.current.shiftX = target.shiftX;
+      current.current.shiftY = target.shiftY;
     } else {
       const k = 1 - Math.pow(0.004, Math.min(delta, 0.1));
       current.current.position.lerp(target.position, k);
@@ -312,6 +306,14 @@ function CameraTour({ progressRef, reducedMotion }) {
     // Shift the rendered image so the focal subject sits in the space the card leaves free.
     camera.setViewOffset(size.width, size.height, -current.current.shiftX * size.width, current.current.shiftY * size.height, size.width, size.height);
     camera.updateProjectionMatrix();
+    // QA hook: `__tourDebug.cam = { pos: [x, y, z], look: [x, y, z] }` in room coordinates pins the camera.
+    const debugCam = typeof window !== 'undefined' ? window.__tourDebug?.cam : null;
+    if (debugCam) {
+      camera.position.copy(toWorld(debugCam.pos));
+      camera.lookAt(toWorld(debugCam.look));
+      camera.clearViewOffset();
+      camera.updateProjectionMatrix();
+    }
     if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.info = { calls: gl.info.render.calls, triangles: gl.info.render.triangles, camera: camera.position.toArray(), shiftX: current.current.shiftX };
   });
 
@@ -322,134 +324,6 @@ function CameraTour({ progressRef, reducedMotion }) {
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
 
-// Procedural surface textures (generated once, shared). They are near-white so the material colour still
-// sets the hue; the texture only adds grain and a little tonal variation, like a real finish would.
-const textureCache = {};
-function seeded(seed) {
-  let value = seed;
-  return () => { value = (value * 16807) % 2147483647; return value / 2147483647; };
-}
-function makeCanvasTexture(key, width, height, paint, { repeat = [1, 1], rotate = false } = {}) {
-  if (typeof document === 'undefined') return null;
-  if (textureCache[key]) return textureCache[key];
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), width, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(...repeat);
-  texture.anisotropy = 4;
-  if (rotate) { texture.center.set(0.5, 0.5); texture.rotation = Math.PI / 2; }
-  textureCache[key] = texture;
-  return texture;
-}
-function paintWood(context, width, height, seed = 3) {
-  const random = seeded(seed);
-  context.fillStyle = '#f4ede4';
-  context.fillRect(0, 0, width, height);
-  // Long grain lines running along the board (vertical in texture space).
-  for (let line = 0; line < 70; line += 1) {
-    const x = random() * width;
-    const tone = 200 + Math.floor(random() * 40);
-    context.strokeStyle = `rgba(${tone - 70}, ${tone - 105}, ${tone - 140}, ${0.05 + random() * 0.12})`;
-    context.lineWidth = 0.6 + random() * 2.2;
-    context.beginPath();
-    context.moveTo(x, 0);
-    for (let y = 0; y <= height; y += 16) context.lineTo(x + Math.sin(y * 0.012 + line) * (3 + random() * 4), y);
-    context.stroke();
-  }
-  // A couple of soft knots.
-  for (let knot = 0; knot < 2; knot += 1) {
-    const gradient = context.createRadialGradient(random() * width, random() * height, 1, width * 0.5, height * 0.5, 40);
-    gradient.addColorStop(0, 'rgba(120, 80, 50, 0.08)');
-    gradient.addColorStop(1, 'rgba(120, 80, 50, 0)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-  }
-}
-function paintPlaster(context, width, height) {
-  const random = seeded(11);
-  context.fillStyle = '#f7f4ef';
-  context.fillRect(0, 0, width, height);
-  for (let blot = 0; blot < 220; blot += 1) {
-    const x = random() * width;
-    const y = random() * height;
-    const r = 8 + random() * 40;
-    const gradient = context.createRadialGradient(x, y, 0, x, y, r);
-    const dark = random() > 0.5;
-    gradient.addColorStop(0, dark ? 'rgba(150, 130, 110, 0.035)' : 'rgba(255, 255, 255, 0.05)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    context.fillStyle = gradient;
-    context.fillRect(x - r, y - r, r * 2, r * 2);
-  }
-}
-function paintFabric(context, width, height) {
-  context.fillStyle = '#f2efea';
-  context.fillRect(0, 0, width, height);
-  for (let y = 0; y < height; y += 2) {
-    context.fillStyle = `rgba(90, 80, 70, ${y % 4 ? 0.05 : 0.09})`;
-    context.fillRect(0, y, width, 1);
-  }
-  for (let x = 0; x < width; x += 2) {
-    context.fillStyle = `rgba(90, 80, 70, ${x % 4 ? 0.03 : 0.07})`;
-    context.fillRect(x, 0, 1, height);
-  }
-}
-const woodAlong = () => makeCanvasTexture('wood-v', 256, 512, (c, w, h) => paintWood(c, w, h, 3));
-const woodAcross = () => makeCanvasTexture('wood-h', 256, 512, (c, w, h) => paintWood(c, w, h, 5), { rotate: true });
-function paintShingles(context, width, height) {
-  const random = seeded(11);
-  context.fillStyle = '#efe6dc';
-  context.fillRect(0, 0, width, height);
-  const rows = 8;
-  const rowH = height / rows;
-  for (let row = 0; row < rows; row += 1) {
-    const tiles = 6;
-    const tileW = width / tiles;
-    const shift = row % 2 ? tileW / 2 : 0;
-    for (let tile = -1; tile <= tiles; tile += 1) {
-      const x = tile * tileW + shift;
-      const shade = 215 + Math.floor(random() * 40);
-      context.fillStyle = `rgb(${shade}, ${shade - 8}, ${shade - 14})`;
-      context.beginPath();
-      context.roundRect(x + 2, row * rowH + 1, tileW - 4, rowH - 2, [0, 0, 10, 10]);
-      context.fill();
-    }
-    context.fillStyle = 'rgba(60, 30, 20, 0.35)';
-    context.fillRect(0, row * rowH + rowH - 3, width, 3);
-  }
-}
-function paintBrick(context, width, height) {
-  const random = seeded(5);
-  context.fillStyle = '#d9cfc6';
-  context.fillRect(0, 0, width, height);
-  const rows = 8;
-  const rowH = height / rows;
-  for (let row = 0; row < rows; row += 1) {
-    const shift = row % 2 ? width / 8 : 0;
-    for (let brick = -1; brick < 4; brick += 1) {
-      const shade = 200 + Math.floor(random() * 55);
-      context.fillStyle = `rgb(${shade}, ${shade - 20}, ${shade - 30})`;
-      context.fillRect(brick * (width / 4) + shift + 2, row * rowH + 2, width / 4 - 4, rowH - 4);
-    }
-  }
-}
-const shingleMap = () => makeCanvasTexture('shingles', 256, 256, paintShingles, { repeat: [3.5, 2.6] });
-const brickMap = () => makeCanvasTexture('brick', 128, 128, paintBrick, { repeat: [1, 1.6] });
-const plasterMap = () => makeCanvasTexture('plaster', 512, 512, paintPlaster, { repeat: [1.5, 1.5] });
-const fabricMap = () => makeCanvasTexture('fabric', 128, 128, paintFabric, { repeat: [4, 4] });
-
-function Block({ args, color, roughness = 0.82, metalness = 0, map, castShadow = true, receiveShadow = true, ...props }) {
-  return (
-    <mesh castShadow={castShadow} receiveShadow={receiveShadow} {...props}>
-      <boxGeometry args={args} />
-      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} map={map ?? null} />
-    </mesh>
-  );
-}
 
 // Glazed ceramic pot with a rim, soil and a leafy plant built from tapered leaves on short stems.
 function Plant({ position, scale = 1, pot = '#e9e3da', leaf = '#4f7a4c', kind = 'leafy' }) {
@@ -497,66 +371,16 @@ function Plant({ position, scale = 1, pot = '#e9e3da', leaf = '#4f7a4c', kind = 
   );
 }
 
-// Cloth-bound book with a printed spine label.
-function Book({ position, size = [0.09, 0.42, 0.3], color, tilt = 0, title }) {
-  return (
-    <group position={position} rotation={[0, 0, tilt]}>
-      <RoundedBox args={size} radius={0.008} smoothness={2} castShadow receiveShadow>
-        <meshStandardMaterial color={color} roughness={0.7} />
-      </RoundedBox>
-      {/* Page block visible at the top */}
-      <Block args={[size[0] - 0.012, 0.004, size[2] - 0.02]} color="#efe6d4" position={[0, size[1] / 2 + 0.001, 0.004]} castShadow={false} />
-      <Block args={[size[0] + 0.001, 0.012, 0.004]} color={palette.brass} metalness={0.6} roughness={0.35} position={[0, size[1] * 0.36, size[2] / 2 + 0.001]} castShadow={false} />
-      {title && (
-        <Text font={FONT} position={[0, -0.02, size[2] / 2 + 0.003]} rotation={[0, 0, Math.PI / 2]} fontSize={Math.min(0.034, size[0] * 0.42)} color="#f3ead9" anchorX="center" anchorY="middle" letterSpacing={0.08} maxWidth={size[1] * 0.8}>
-          {title}
-        </Text>
-      )}
-    </group>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Interactivity                                                        */
 /* ------------------------------------------------------------------ */
 
-// R3F does not forward React context into the Canvas, so the scene gets its own provider.
-const RoomContext = createContext(null);
-const useRoom = () => useContext(RoomContext);
 
 export const RGB_MODES = ['wave', 'sunset', 'off'];
 const RGB_LABELS = { wave: 'Wave', sunset: 'Sunset', off: 'Off' };
 const RGB_THEME = ['#e07a4b', '#d9a65b', '#5fb3a3', '#7c8ce0'];
 
-// Wraps a room object: lifts slightly on hover, shows a small label, runs `onSelect` on click/tap.
-function Interactive({ label, onSelect, labelOffset = [0, 0.4, 0], children, ...props }) {
-  const group = useRef();
-  const [hovered, setHovered] = useState(false);
-  const { reducedMotion } = useRoom();
-  useFrame((_, delta) => {
-    if (!group.current) return;
-    const target = hovered && !reducedMotion ? 0.035 : 0;
-    group.current.position.y += (target - group.current.position.y) * (1 - Math.pow(0.001, delta));
-  });
-  useEffect(() => () => { document.body.style.cursor = ''; }, []);
-  return (
-    <group {...props}>
-      <group
-        ref={group}
-        onPointerOver={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-        onPointerOut={() => { setHovered(false); document.body.style.cursor = ''; }}
-        onClick={(event) => { event.stopPropagation(); if (event.delta > 6) return; onSelect?.(); }}
-      >
-        {children}
-      </group>
-      {hovered && (
-        <Html position={labelOffset} center zIndexRange={[25, 0]} wrapperClass="box-tour-html">
-          <span className="box-tour-object-label">{label}</span>
-        </Html>
-      )}
-    </group>
-  );
-}
 
 function ClockHands() {
   const hour = useRef();
@@ -651,7 +475,7 @@ function MusicNotes({ playing }) {
   );
 }
 
-function SpinningRecord() {
+function SpinningRecord({ position = [-0.42, 0.76, 0.02] }) {
   const record = useRef();
   const arm = useRef();
   const playing = useLofiPlaying();
@@ -661,7 +485,7 @@ function SpinningRecord() {
     if (arm.current) arm.current.rotation.y += ((playing ? -0.42 : 0.05) - arm.current.rotation.y) * Math.min(1, delta * 4);
   });
   return (
-    <Interactive label={playing ? 'Stop the lo-fi' : 'Play some lo-fi'} onSelect={() => getLofi()?.toggle()} position={[-0.42, 0.76, 0.02]} labelOffset={[0, 0.35, 0]}>
+    <Interactive label={playing ? 'Stop the lo-fi' : 'Play some lo-fi'} onSelect={() => getLofi()?.toggle()} position={position} labelOffset={[0, 0.35, 0]}>
       <MusicNotes playing={playing} />
       {/* Walnut plinth with aluminium feet */}
       <RoundedBox args={[0.62, 0.07, 0.46]} radius={0.012} smoothness={2} position={[0, 0.035, 0]} castShadow receiveShadow>
@@ -707,20 +531,6 @@ function SpinningRecord() {
   );
 }
 
-function WigglePlant(props) {
-  const group = useRef();
-  const wiggle = useRef(0);
-  const { reducedMotion } = useRoom();
-  useFrame(({ clock }, delta) => {
-    wiggle.current = Math.max(0, wiggle.current - delta);
-    if (group.current) group.current.rotation.z = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 18) * 0.08 * wiggle.current;
-  });
-  return (
-    <Interactive label="Say hi to the plant" onSelect={() => { wiggle.current = 1.2; }} position={props.position} labelOffset={[0, 1.4, 0]}>
-      <group ref={group}><Plant position={[0, 0, 0]} scale={props.scale} pot={props.pot} kind={props.kind} /></group>
-    </Interactive>
-  );
-}
 
 // Thin gallery frame with a white mat. `w`/`h` are outside dimensions; children render on the artwork plane.
 function GalleryFrame({ w, h, mat = 0.07, color = '#1f1d1b', position, children }) {
@@ -816,7 +626,7 @@ function Diploma({ w, h }) {
 
 function WallClock() {
   return (
-    <group position={[-1.5, 2.62, -S + 0.04]}>
+    <group position={[-1.02, 2.5, -S + 0.04]}>
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
         <cylinderGeometry args={[0.24, 0.24, 0.05, 48]} />
         <meshStandardMaterial color={palette.metal} roughness={0.4} metalness={0.5} />
@@ -842,27 +652,7 @@ function WallClock() {
   );
 }
 
-// Small shelf label plate (engraved brass look).
-function ShelfLabel({ label, position }) {
-  return (
-    <group position={position}>
-      <Block args={[0.5, 0.06, 0.006]} color={palette.brass} metalness={0.7} roughness={0.35} castShadow={false} />
-      <Text font={FONT} position={[0, 0, 0.0045]} fontSize={0.032} color="#3b2a1a" anchorX="center" anchorY="middle" letterSpacing={0.16}>
-        {label}
-      </Text>
-    </group>
-  );
-}
 
-function FloatingShelf({ y, label, children }) {
-  return (
-    <group position={[0.1, y, -S + 0.2]}>
-      <Block args={[2.0, 0.06, 0.36]} color={palette.timber} roughness={0.55} map={woodAcross()} />
-      <ShelfLabel label={label} position={[0, -0.002, 0.184]} />
-      <group position={[0, 0.03, 0]}>{children}</group>
-    </group>
-  );
-}
 
 // Phone on a small stand, screen showing the Qline icon.
 function PhoneOnStand({ position, rotation }) {
@@ -964,41 +754,97 @@ function MiniServer({ position }) {
   );
 }
 
+// Cube bookshelf (Poly Haven) filled with the tools I use: books are languages, the mini server holds the APIs,
+// the phone runs Qline, the controller is for the Godot game.
+const SHELF = { x: -2.3, z: -S + 0.19 };
+const CELL_X = [-0.36, 0, 0.36];
+const CELL_Y = [0.45, 0.82, 1.19, 1.56];
+
+function Bookshelf() {
+  return (
+    <group position={[SHELF.x, 0, SHELF.z]}>
+      <Suspense fallback={<Block args={[1.08, 1.56, 0.37]} color="#d9b98a" position={[0, 0.78, 0]} />}>
+        <Model name="wooden_display_shelves_01" rotation={[0, -Math.PI / 2, 0]} />
+        <Model name="book_encyclopedia_set_01" position={[CELL_X[0] - 0.15, CELL_Y[0], -0.02]} scale={[0.58, 0.95, 0.85]} />
+        <Model name="potted_plant_04" position={[CELL_X[1], CELL_Y[2], 0]} scale={1.05} />
+        <Model name="standing_picture_frame_01" position={[CELL_X[2] - 0.05, CELL_Y[3], -0.02]} rotation={[0, -0.25, 0]} scale={0.9} />
+        <Model name="ceramic_vase_01" position={[CELL_X[0] + 0.05, CELL_Y[3], 0]} scale={0.55} />
+      </Suspense>
+      <MiniServer position={[CELL_X[1], CELL_Y[0], -0.02]} />
+      <GameController position={[CELL_X[2], CELL_Y[0], 0.02]} rotation={[0, -0.25, 0]} />
+      <Book position={[CELL_X[0] - 0.11, CELL_Y[1] + 0.14, 0]} size={[0.06, 0.28, 0.24]} color="#2f3e56" title="TS" />
+      <Book position={[CELL_X[0] - 0.045, CELL_Y[1] + 0.135, 0]} size={[0.06, 0.27, 0.23]} color="#7a3b33" title="REACT" />
+      <Book position={[CELL_X[0] + 0.02, CELL_Y[1] + 0.14, 0]} size={[0.06, 0.28, 0.24]} color="#3f5a4a" title="NODE" />
+      <Book position={[CELL_X[0] + 0.1, CELL_Y[1] + 0.125, 0]} size={[0.06, 0.25, 0.22]} color="#c2ad8b" title="NEXT" tilt={-0.22} />
+      <PhoneOnStand position={[CELL_X[1], CELL_Y[1], -0.02]} rotation={[0, 0.12, 0]} />
+      <Book position={[CELL_X[2] - 0.1, CELL_Y[1] + 0.13, 0]} size={[0.065, 0.26, 0.24]} color="#556b4f" title="KOTLIN" />
+      <Book position={[CELL_X[2] - 0.03, CELL_Y[1] + 0.125, 0]} size={[0.06, 0.25, 0.23]} color="#3d5a80" title="FLUTTER" />
+      <Book position={[CELL_X[2] + 0.04, CELL_Y[1] + 0.13, 0]} size={[0.06, 0.26, 0.24]} color="#3a3a3c" title="SQL" />
+      <GraduationCap position={[CELL_X[0], CELL_Y[2], 0]} rotation={[0, 0.4, 0]} />
+      <Book position={[CELL_X[2], CELL_Y[2] + 0.02, 0]} size={[0.22, 0.04, 0.17]} color="#c4704e" tilt={Math.PI / 2} />
+      <Book position={[CELL_X[2], CELL_Y[2] + 0.06, 0]} size={[0.2, 0.035, 0.15]} color="#2f3e56" tilt={Math.PI / 2} />
+    </group>
+  );
+}
+
+function Credenza() {
+  return (
+    <group position={[-0.86, 0, -S + 0.28]}>
+      <Suspense fallback={<Block args={[1.46, 0.68, 0.52]} color={palette.timber} position={[0, 0.34, 0]} />}>
+        <Model name="modern_wooden_cabinet" scale={[0.6, 1, 1]} />
+        <Model name="potted_plant_04" position={[0.6, 0.68, 0.02]} scale={0.85} />
+      </Suspense>
+      {/* Bookshelf speaker and a short stack of records */}
+      <group position={[0.3, 0.68, -0.04]}>
+        <RoundedBox args={[0.2, 0.32, 0.22]} radius={0.012} smoothness={2} position={[0, 0.16, 0]} castShadow>
+          <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAlong()} />
+        </RoundedBox>
+        <Block args={[0.17, 0.29, 0.004]} color="#2b2a29" roughness={0.95} map={fabricMap()} position={[0, 0.16, 0.111]} castShadow={false} />
+      </group>
+      <group position={[0.0, 0.68, 0.04]}>
+        {[0, 1, 2].map((record) => (
+          <Block key={record} args={[0.31, 0.012, 0.31]} color={['#1d1d1f', '#c4572e', '#e8e0d4'][record]} roughness={0.6} position={[0, 0.006 + record * 0.013, 0]} rotation={[0, record * 0.12, 0]} />
+        ))}
+      </group>
+      <SpinningRecord position={[-0.4, 0.68, 0.02]} />
+    </group>
+  );
+}
+
 function DisplayWall() {
   const { goTo } = useRoom();
   return (
     <group>
-      {/* Name sign: dimensional lettering mounted off the wall */}
-      <Interactive label="About me" onSelect={() => goTo('display')} position={[0.1, 2.92, -S + 0.04]} labelOffset={[0, 0.45, 0.1]}>
-        <Text font={FONT} position={[0.012, 0.072, 0.0]} fontSize={0.25} color="#cfc5b6" anchorX="center" anchorY="middle" letterSpacing={0.1}>
+      {/* Name sign: dimensional lettering above the posters */}
+      <Interactive label="About me" onSelect={() => goTo('display')} position={[1.1, 2.92, -S + 0.04]} labelOffset={[0, 0.4, 0.1]}>
+        <Text font={FONT} position={[0.01, 0.062, 0.0]} fontSize={0.2} color="#cfc5b6" anchorX="center" anchorY="middle" letterSpacing={0.1}>
           JAZZ SAJONIA
         </Text>
-        <Text font={FONT} position={[0, 0.08, 0.02]} fontSize={0.25} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.1}>
+        <Text font={FONT} position={[0, 0.07, 0.02]} fontSize={0.2} color={palette.ink} anchorX="center" anchorY="middle" letterSpacing={0.1}>
           JAZZ SAJONIA
         </Text>
-        <Block args={[0.32, 0.012, 0.01]} color={palette.accent} position={[0, -0.09, 0.015]} castShadow={false} />
-        <Text font={FONT_MEDIUM} position={[0, -0.17, 0.02]} fontSize={0.062} color="#5a5048" anchorX="center" anchorY="middle" letterSpacing={0.24}>
+        <Block args={[0.28, 0.01, 0.01]} color={palette.accent} position={[0, -0.075, 0.015]} castShadow={false} />
+        <Text font={FONT_MEDIUM} position={[0, -0.145, 0.02]} fontSize={0.052} color="#5a5048" anchorX="center" anchorY="middle" letterSpacing={0.24}>
           SOFTWARE BUILDER · AI & AUTOMATION
         </Text>
-        {/* Invisible hit area so the whole sign is easy to click */}
         <mesh position={[0, 0, 0.02]}>
-          <planeGeometry args={[2.1, 0.55]} />
+          <planeGeometry args={[1.8, 0.45]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       </Interactive>
 
-      {/* Gallery wall: portrait, degree and the current flagship project */}
-      <GalleryFrame w={0.66} h={0.82} position={[1.66, 1.92, -S + 0.03]}>
+      {/* Gallery above the bookshelf: portrait, degree and the current flagship project */}
+      <GalleryFrame w={0.6} h={0.76} position={[-2.56, 2.36, -S + 0.03]}>
         {({ w, h }) => (
           <Suspense fallback={<mesh><planeGeometry args={[w, h]} /><meshStandardMaterial color="#d9d4cc" /></mesh>}>
             <PortraitPhoto w={w} h={h} />
           </Suspense>
         )}
       </GalleryFrame>
-      <GalleryFrame w={0.62} h={0.47} mat={0.045} position={[2.42, 2.1, -S + 0.03]} color={palette.timberDark}>
+      <GalleryFrame w={0.56} h={0.42} mat={0.04} position={[-1.86, 2.52, -S + 0.03]} color={palette.timberDark}>
         {({ w, h }) => <Diploma w={w} h={h} />}
       </GalleryFrame>
-      <GalleryFrame w={0.46} h={0.46} mat={0.04} position={[2.34, 1.55, -S + 0.03]}>
+      <GalleryFrame w={0.4} h={0.4} mat={0.035} position={[-1.92, 2.02, -S + 0.03]}>
         {({ w, h }) => (
           <group>
             <mesh>
@@ -1006,70 +852,14 @@ function DisplayWall() {
               <meshBasicMaterial color="#0d1512" toneMapped={false} />
             </mesh>
             <Suspense fallback={null}><QlineMark size={w * 0.58} /></Suspense>
-            <Text font={FONT} position={[0, -h * 0.38, 0.003]} fontSize={0.028} color="#cfe9df" anchorX="center" anchorY="middle" letterSpacing={0.3}>QLINE · 2026</Text>
+            <Text font={FONT} position={[0, -h * 0.38, 0.003]} fontSize={0.026} color="#cfe9df" anchorX="center" anchorY="middle" letterSpacing={0.3}>QLINE · 2026</Text>
           </group>
         )}
       </GalleryFrame>
 
       <WallClock />
-
-      {/* Upper shelf: web and data. Books are the languages and tools; the small server holds the APIs. */}
-      <FloatingShelf y={2.15} label="WEB · DATA">
-        <Book position={[-0.84, 0.2, 0]} size={[0.085, 0.4, 0.27]} color="#2f3e56" title="TYPESCRIPT" />
-        <Book position={[-0.75, 0.19, 0]} size={[0.08, 0.38, 0.26]} color="#7a3b33" title="REACT" />
-        <Book position={[-0.665, 0.2, 0]} size={[0.08, 0.4, 0.27]} color="#3f5a4a" title="NODE.JS" />
-        <Book position={[-0.58, 0.18, 0]} size={[0.08, 0.36, 0.25]} color="#c2ad8b" title="NEXT.JS" />
-        <Book position={[-0.47, 0.17, 0]} size={[0.08, 0.36, 0.26]} color="#3a3a3c" title="POSTGRES" tilt={-0.24} />
-        {/* Metal bookend */}
-        <group position={[-0.95, 0, 0]}>
-          <Block args={[0.012, 0.2, 0.16]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0, 0.1, 0]} />
-          <Block args={[0.08, 0.008, 0.16]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0.04, 0.004, 0]} />
-        </group>
-        <MiniServer position={[0.12, 0, -0.02]} />
-        <Plant position={[0.72, 0, 0]} scale={0.6} pot="#e9e3da" />
-      </FloatingShelf>
-
-      {/* Lower shelf: mobile and AI. A phone running Qline, a controller for the Godot game, my graduation cap. */}
-      <FloatingShelf y={1.5} label="MOBILE · AI">
-        <PhoneOnStand position={[-0.7, 0, -0.02]} rotation={[0, 0.18, 0]} />
-        <GameController position={[-0.16, 0, 0.02]} rotation={[0, -0.25, 0]} />
-        <GraduationCap position={[0.38, 0, -0.01]} rotation={[0, 0.4, 0]} />
-        <Book position={[0.78, 0.17, 0]} size={[0.085, 0.34, 0.26]} color="#556b4f" title="KOTLIN" />
-        <Book position={[0.87, 0.16, 0]} size={[0.08, 0.32, 0.25]} color="#3d5a80" title="FLUTTER" />
-      </FloatingShelf>
-
-      {/* Walnut credenza with slatted doors on black steel legs */}
-      <group position={[0.1, 0, -S + 0.34]}>
-        <Block args={[2.1, 0.56, 0.6]} color={palette.timber} roughness={0.55} map={woodAcross()} position={[0, 0.44, 0]} />
-        <Block args={[2.14, 0.035, 0.63]} color={palette.timberDark} roughness={0.5} map={woodAcross()} position={[0, 0.735, 0]} />
-        <Instances limit={64} castShadow={false}>
-          <boxGeometry args={[0.022, 0.48, 0.012]} />
-          <meshStandardMaterial color={palette.timberDark} roughness={0.55} />
-          {Array.from({ length: 60 }, (_, slat) => (
-            <Instance key={slat} position={[-0.99 + slat * 0.0336, 0.44, 0.305]} />
-          ))}
-        </Instances>
-        <Block args={[0.006, 0.5, 0.012]} color="#2a1c12" position={[0, 0.44, 0.31]} castShadow={false} />
-        {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([x, z]) => (
-          <Block key={`${x}${z}`} args={[0.035, 0.16, 0.035]} color={palette.metal} metalness={0.5} roughness={0.4} position={[x * 0.98, 0.08, z * 0.25]} />
-        ))}
-        {/* Bookshelf speaker and a short stack of records */}
-        <group position={[0.72, 0.755, -0.02]}>
-          <RoundedBox args={[0.2, 0.32, 0.22]} radius={0.012} smoothness={2} position={[0, 0.16, 0]} castShadow>
-            <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAlong()} />
-          </RoundedBox>
-          <Block args={[0.17, 0.29, 0.004]} color="#2b2a29" roughness={0.95} map={fabricMap()} position={[0, 0.16, 0.111]} castShadow={false} />
-        </group>
-        <group position={[0.32, 0.755, 0.02]}>
-          {[0, 1, 2].map((record) => (
-            <Block key={record} args={[0.31, 0.012, 0.31]} color={['#1d1d1f', '#c4572e', '#e8e0d4'][record]} roughness={0.6} position={[0, 0.006 + record * 0.013, 0]} rotation={[0, record * 0.12, 0]} />
-          ))}
-        </group>
-        <SpinningRecord />
-      </group>
-
-      {/* Tall plant in the right corner */}
-      <WigglePlant position={[2.55, 0, -2.45]} scale={1.35} pot="#2f2e2c" kind="tall" />
+      <Bookshelf />
+      <Credenza />
     </group>
   );
 }
@@ -1092,150 +882,55 @@ function loadScreenImage(src, onLoad) {
   return image.complete && image.naturalWidth ? image : null;
 }
 
-function roundRect(context, x, y, w, h, r) {
-  context.beginPath();
-  context.moveTo(x + r, y);
-  context.arcTo(x + w, y, x + w, y + h, r);
-  context.arcTo(x + w, y + h, x, y + h, r);
-  context.arcTo(x, y + h, x, y, r);
-  context.arcTo(x, y, x + w, y, r);
-  context.closePath();
-}
 
-function drawMonitorScreen(canvas, project, index, total, image) {
-  const context = canvas.getContext('2d');
-  const { width, height } = canvas;
-  context.fillStyle = '#121315';
-  context.fillRect(0, 0, width, height);
-  // Soft accent glow in the corner, like a product page hero.
-  const glow = context.createRadialGradient(width * 0.82, height * 0.55, 10, width * 0.82, height * 0.55, width * 0.55);
-  glow.addColorStop(0, `${project.color}55`);
-  glow.addColorStop(1, 'rgba(18, 19, 21, 0)');
-  context.fillStyle = glow;
-  context.fillRect(0, 0, width, height);
+// Preview artwork for the run pane, taken from the shared project data where a screenshot exists.
+const previewFor = (slug) => allProjects.find((item) => item.slug === slug)?.image ?? null;
 
-  // Browser-style top bar
-  context.fillStyle = '#1c1d20';
-  context.fillRect(0, 0, width, 50);
-  ['#3a3b3f', '#3a3b3f', '#3a3b3f'].forEach((color, dot) => {
-    context.fillStyle = color;
-    context.beginPath();
-    context.arc(32 + dot * 26, 25, 7, 0, Math.PI * 2);
-    context.fill();
-  });
-  context.fillStyle = '#26272b';
-  roundRect(context, 130, 13, 420, 24, 12);
-  context.fill();
-  context.fillStyle = 'rgba(255,255,255,0.45)';
-  context.font = '500 15px "Space Grotesk", system-ui, sans-serif';
-  context.textAlign = 'left';
-  context.fillText(`jazz-portfolio1.vercel.app/projects#${project.slug}`, 148, 30);
-  context.textAlign = 'right';
-  context.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, width - 28, 31);
-
-  // Left column: type, title, stack
-  const left = 56;
-  context.textAlign = 'left';
-  context.fillStyle = project.color;
-  context.font = '600 20px "Space Grotesk", system-ui, sans-serif';
-  context.fillText(project.type.toUpperCase(), left, 130);
-  context.fillStyle = '#f4f1ec';
-  const columnWidth = image ? 520 : width - 2 * left;
-  let titleSize = 78;
-  context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
-  while (titleSize > 40 && context.measureText(project.title).width > columnWidth) {
-    titleSize -= 4;
-    context.font = `700 ${titleSize}px "Space Grotesk", system-ui, sans-serif`;
-  }
-  context.fillText(project.title, left - 3, 130 + titleSize + 18);
-  // Stack as pills
-  let x = left;
-  let y = 130 + titleSize + 62;
-  context.font = '500 18px "Space Grotesk", system-ui, sans-serif';
-  project.stack.forEach((item) => {
-    const w = context.measureText(item).width + 26;
-    if (x + w > left + columnWidth) { x = left; y += 42; }
-    context.fillStyle = 'rgba(255,255,255,0.07)';
-    roundRect(context, x, y, w, 32, 16);
-    context.fill();
-    context.fillStyle = 'rgba(244,241,236,0.8)';
-    context.fillText(item, x + 13, y + 22);
-    x += w + 10;
-  });
-  // Primary button + secondary link
-  y += 76;
-  context.fillStyle = project.color;
-  roundRect(context, left, y, 168, 46, 23);
-  context.fill();
-  context.fillStyle = '#121315';
-  context.font = '700 18px "Space Grotesk", system-ui, sans-serif';
-  context.fillText('View project', left + 26, y + 29);
-  context.fillStyle = 'rgba(244,241,236,0.6)';
-  context.font = '500 18px "Space Grotesk", system-ui, sans-serif';
-  context.fillText(project.github ? 'Source on GitHub' : 'Private repo', left + 192, y + 29);
-
-  // Right column: real artwork where available, otherwise an abstract product tile.
-  const panelX = width - 360;
-  const panelY = 110;
-  const panelW = 300;
-  const panelH = 300;
-  if (image) {
-    context.fillStyle = '#0d1512';
-    roundRect(context, panelX, panelY, panelW, panelH, 28);
-    context.fill();
-    const size = 210;
-    context.drawImage(image, panelX + (panelW - size) / 2, panelY + (panelH - size) / 2, size, size);
-  } else {
-    context.globalAlpha = 0.9;
-    context.fillStyle = project.color;
-    roundRect(context, panelX + 40, panelY + 40, panelW - 80, panelH - 80, 36);
-    context.fill();
-    context.globalAlpha = 0.25;
-    roundRect(context, panelX, panelY, panelW, panelH, 44);
-    context.fill();
-    context.globalAlpha = 1;
-    context.fillStyle = '#121315';
-    context.font = '700 96px "Space Grotesk", system-ui, sans-serif';
-    context.textAlign = 'center';
-    context.fillText(project.title.charAt(0), panelX + panelW / 2, panelY + panelH / 2 + 34);
-    context.textAlign = 'left';
-  }
-  // Progress dots along the bottom
-  for (let dot = 0; dot < total; dot += 1) {
-    context.fillStyle = dot === index ? project.color : 'rgba(255,255,255,0.18)';
-    roundRect(context, left + dot * 26, height - 40, dot === index ? 20 : 10, 6, 3);
-    context.fill();
-  }
-}
-
-function MonitorScreen({ project, index }) {
+function MonitorScreen({ project, index, progressRef }) {
   const canvas = useMemo(() => {
     if (typeof document === 'undefined') return null;
     const element = document.createElement('canvas');
-    element.width = 1024;
-    element.height = 640;
+    element.width = EDITOR_SIZE.width;
+    element.height = EDITOR_SIZE.height;
     return element;
   }, []);
   const texture = useMemo(() => {
     if (!canvas) return null;
     const value = new THREE.CanvasTexture(canvas);
     value.colorSpace = THREE.SRGBColorSpace;
-    value.anisotropy = 4;
+    value.anisotropy = 8;
+    value.generateMipmaps = false;
+    value.minFilter = THREE.LinearFilter;
     return value;
   }, [canvas]);
+  const editor = useRef(null);
+  const since = useRef(1);
+  const image = useRef(null);
+  const { reducedMotion } = useRoom();
 
   useEffect(() => {
-    if (!canvas || !texture) return undefined;
-    let cancelled = false;
-    const draw = () => {
-      if (cancelled) return;
-      drawMonitorScreen(canvas, project, index, projects.length, loadScreenImage(project.screen, draw));
-      texture.needsUpdate = true;
-    };
-    draw();
-    if (document.fonts?.ready) document.fonts.ready.then(draw);
-    return () => { cancelled = true; };
-  }, [canvas, texture, project, index]);
+    editor.current = createEditorState(project);
+    // Start partway through so the code is never empty when the stop is reached.
+    editor.current.typed = reducedMotion ? 1e9 : project.summary.length * 0.8;
+    image.current = null;
+    const src = previewFor(project.slug);
+    if (src) image.current = loadScreenImage(src, () => { image.current = loadScreenImage(src); since.current = 1; });
+    since.current = 1;
+  }, [project, reducedMotion]);
+
+  useFrame((_, delta) => {
+    if (!canvas || !texture || !editor.current) return;
+    const p = progressRef ? progressRef.current.smooth : 1;
+    if (p < 0.2) return; // box still closed: no need to animate the screen
+    const dt = Math.min(delta, 0.1);
+    if (!reducedMotion) stepEditor(editor.current, dt, actors.human.typing !== false);
+    since.current += dt;
+    // ~12 fps is plenty for a typing animation and keeps canvas uploads cheap.
+    if (since.current < 1 / 12) return;
+    since.current = 0;
+    drawEditor(canvas, editor.current, { image: image.current, index, total: projects.length });
+    texture.needsUpdate = true;
+  });
 
   useEffect(() => () => texture?.dispose(), [texture]);
 
@@ -1299,29 +994,29 @@ function OfficeChair({ position = [-S + 1.3, 0, -0.3], yaw = 0 }) {
   return (
     <group position={position} rotation={[0, yaw, 0]}>
       {/* Seat */}
-      <RoundedBox args={[0.56, 0.09, 0.54]} radius={0.04} smoothness={3} position={[0, 0.58, 0]} castShadow receiveShadow>
+      <RoundedBox args={[0.56, 0.09, 0.54]} radius={0.04} smoothness={3} position={[0, 0.435, 0]} castShadow receiveShadow>
         <meshStandardMaterial color={fabric} roughness={0.9} map={fabricMap()} />
       </RoundedBox>
       {/* Mesh back on a curved frame */}
-      <group position={[0.27, 0.98, 0]} rotation={[0, 0, -0.1]}>
+      <group position={[0.27, 0.835, 0]} rotation={[0, 0, -0.1]}>
         <RoundedBox args={[0.06, 0.62, 0.5]} radius={0.03} smoothness={3} castShadow>
           <meshStandardMaterial color="#1f2022" roughness={0.6} />
         </RoundedBox>
         <Block args={[0.012, 0.54, 0.42]} color="#3c3d41" roughness={0.95} map={fabricMap()} position={[-0.03, 0, 0]} castShadow={false} />
       </group>
-      <Block args={[0.05, 0.26, 0.08]} color="#1f2022" position={[0.27, 0.69, 0]} />
+      <Block args={[0.05, 0.26, 0.08]} color="#1f2022" position={[0.27, 0.545, 0]} />
       {/* Armrests */}
       {[-1, 1].map((side) => (
         <group key={side} position={[0.02, 0, side * 0.29]}>
-          <Block args={[0.04, 0.2, 0.04]} color="#1f2022" position={[0.05, 0.72, 0]} />
-          <RoundedBox args={[0.3, 0.035, 0.07]} radius={0.015} smoothness={2} position={[0.0, 0.83, 0]} castShadow>
+          <Block args={[0.04, 0.2, 0.04]} color="#1f2022" position={[0.05, 0.575, 0]} />
+          <RoundedBox args={[0.3, 0.035, 0.07]} radius={0.015} smoothness={2} position={[0.0, 0.685, 0]} castShadow>
             <meshStandardMaterial color="#1f2022" roughness={0.6} />
           </RoundedBox>
         </group>
       ))}
       {/* Gas lift and five-star base with casters */}
-      <mesh position={[0, 0.34, 0]} castShadow>
-        <cylinderGeometry args={[0.03, 0.03, 0.42, 14]} />
+      <mesh position={[0, 0.25, 0]} castShadow>
+        <cylinderGeometry args={[0.03, 0.03, 0.3, 14]} />
         <meshStandardMaterial color="#c9cbd0" roughness={0.2} metalness={0.9} />
       </mesh>
       {[0, 1, 2, 3, 4].map((leg) => {
@@ -1340,26 +1035,10 @@ function OfficeChair({ position = [-S + 1.3, 0, -0.3], yaw = 0 }) {
   );
 }
 
-function Mug({ position, color = palette.accent, rotation = 0 }) {
-  return (
-    <group position={position} rotation={[0, rotation, 0]}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.05, 0.046, 0.11, 24]} />
-        <meshStandardMaterial color={color} roughness={0.35} />
-      </mesh>
-      <mesh position={[0, 0.052, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.044, 20]} />
-        <meshStandardMaterial color="#3b2416" roughness={0.2} />
-      </mesh>
-      <mesh position={[0.058, 0, 0]} castShadow>
-        <torusGeometry args={[0.028, 0.008, 8, 16]} />
-        <meshStandardMaterial color={color} roughness={0.35} />
-      </mesh>
-    </group>
-  );
-}
 
-function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNext }) {
+const MONITOR_Y = 0.52; // monitor centre above the desktop props group (screen centre ≈ 1.29 m)
+
+function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNext, progressRef }) {
   const { goTo, nightRef } = useRoom();
   const glass = useRef();
   const dayGlass = useMemo(() => new THREE.Color('#f6e2c2'), []);
@@ -1389,46 +1068,53 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
 
       <ProjectBoard />
 
-      {/* Desk: walnut top on black steel frame, with a drawer pedestal */}
+      {/* Desk: walnut top (76 cm, a real desk height) on a black steel frame, with a drawer pedestal */}
       <group position={[deskX, 0, -0.3]}>
-        <Block args={[0.86, 0.05, 2.5]} color={palette.timber} roughness={0.5} map={woodAlong()} position={[0, 0.965, 0]} />
+        <Block args={[0.86, 0.04, 2.5]} color={palette.timber} roughness={0.5} map={woodAlong()} position={[0, DESK_TOP - 0.02, 0]} />
         <group position={[0, 0, 0.82]}>
-          <Block args={[0.74, 0.9, 0.7]} color="#e9e4dc" roughness={0.6} position={[0, 0.47, 0]} />
-          {[0.72, 0.43, 0.16].map((y, drawer) => (
+          <Block args={[0.74, 0.68, 0.62]} color="#e9e4dc" roughness={0.6} position={[0, 0.36, 0]} />
+          {[0.56, 0.35, 0.14].map((y) => (
             <group key={y} position={[0.372, y, 0]}>
-              <Block args={[0.01, drawer === 2 ? 0.24 : 0.25, 0.64]} color="#f1ede6" roughness={0.6} castShadow={false} />
-              <Block args={[0.02, 0.016, 0.22]} color={palette.metal} metalness={0.6} roughness={0.35} position={[0.012, 0.08, 0]} castShadow={false} />
+              <Block args={[0.01, 0.19, 0.58]} color="#f1ede6" roughness={0.6} castShadow={false} />
+              <Block args={[0.02, 0.014, 0.2]} color={palette.metal} metalness={0.6} roughness={0.35} position={[0.012, 0.06, 0]} castShadow={false} />
             </group>
           ))}
         </group>
         {/* Steel frame: two legs and a crossbar */}
         {[-1.18].map((z) => (
           <group key={z} position={[0, 0, z]}>
-            <Block args={[0.04, 0.94, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.36, 0.47, 0]} />
-            <Block args={[0.04, 0.94, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0.36, 0.47, 0]} />
+            <Block args={[0.04, DESK_TOP - 0.04, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.36, (DESK_TOP - 0.04) / 2, 0]} />
+            <Block args={[0.04, DESK_TOP - 0.04, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0.36, (DESK_TOP - 0.04) / 2, 0]} />
             <Block args={[0.76, 0.04, 0.05]} color={palette.metal} metalness={0.5} roughness={0.4} position={[0, 0.03, 0]} />
           </group>
         ))}
-        <Block args={[0.04, 0.05, 1.6]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.3, 0.92, -0.38]} castShadow={false} />
-
+        <Block args={[0.04, 0.05, 1.6]} color={palette.metal} metalness={0.5} roughness={0.4} position={[-0.3, DESK_TOP - 0.065, -0.38]} castShadow={false} />
+        {/* Desk props: arm lamp, a rubber duck for debugging, pens */}
+        <Suspense fallback={null}>
+          <Model name="desk_lamp_arm_01" position={[-0.27, DESK_TOP, 1.02]} rotation={[0, Math.PI, 0]} scale={0.9} />
+          <Model name="rubber_duck_toy" position={[-0.27, DESK_TOP, -0.62]} rotation={[0, 1.1, 0]} scale={0.32} />
+          <Model name="stationery_supplies" position={[0.12, DESK_TOP, 0.98]} rotation={[0, Math.PI / 2, 0]} scale={0.8} />
+        </Suspense>
+        {/* Everything on the desktop sits on this group (top surface = DESK_TOP) */}
+        <group position={[0, DESK_TOP - 0.99, 0]}>
         {/* Monitor: slim black bezel on an aluminium stand */}
         <group position={[-0.2, 0.99, -0.05]} rotation={[0, Math.PI / 2, 0]}>
           <Block args={[0.3, 0.012, 0.2]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.006, 0]} />
-          <Block args={[0.06, 0.34, 0.025]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.18, -0.03]} />
-          <Interactive label={controlsVisible ? `More about ${project.title}` : 'See my projects'} onSelect={() => (controlsVisible ? window.open(project.href, '_blank', 'noopener,noreferrer') : goTo('computer'))} position={[0, 0.66, 0.0]} labelOffset={[0, 0.6, 0.05]}>
+          <Block args={[0.06, 0.26, 0.025]} color="#b9bbc0" metalness={0.8} roughness={0.25} position={[0, 0.14, -0.03]} />
+          <Interactive label={controlsVisible ? `More about ${project.title}` : 'See my projects'} onSelect={() => (controlsVisible ? window.open(project.href, '_blank', 'noopener,noreferrer') : goTo('computer'))} position={[0, MONITOR_Y, 0.0]} labelOffset={[0, 0.6, 0.05]}>
             <RoundedBox args={[1.28, 0.82, 0.05]} radius={0.018} smoothness={3} castShadow>
               <meshStandardMaterial color="#17181a" roughness={0.35} metalness={0.3} />
             </RoundedBox>
-            <MonitorScreen project={project} index={projectIndex} />
+            <MonitorScreen project={project} index={projectIndex} progressRef={progressRef} />
             <Block args={[0.16, 0.008, 0.006]} color="#2a2b2f" position={[0, -0.395, 0.026]} castShadow={false} />
           </Interactive>
           {/* Arrow controls anchored beside the monitor */}
-          <Html position={[-1.32, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[-1.32, MONITOR_Y, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onPrevious} aria-label="Previous project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowLeft size={22} weight="bold" />
             </button>
           </Html>
-          <Html position={[1.4, 0.66, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
+          <Html position={[1.4, MONITOR_Y, 0.05]} center zIndexRange={[20, 0]} wrapperClass="box-tour-html">
             <button type="button" className={`box-tour-arrow${controlsVisible ? ' is-visible' : ''}`} onClick={onNext} aria-label="Next project" tabIndex={controlsVisible ? 0 : -1} aria-hidden={!controlsVisible}>
               <ArrowRight size={22} weight="bold" />
             </button>
@@ -1436,22 +1122,22 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         </group>
 
         {/* Keyboard: aluminium case, charcoal keycaps, one accent key */}
-        <group position={[0.16, 0.99, -0.05]} rotation={[0, Math.PI / 2, 0]}>
-          <RoundedBox args={[0.82, 0.022, 0.27]} radius={0.008} smoothness={2} castShadow receiveShadow>
+        <group position={[0.3, 0.99, 0.0]} rotation={[0, Math.PI / 2, 0]}>
+          <RoundedBox args={[0.64, 0.022, 0.25]} radius={0.008} smoothness={2} castShadow receiveShadow>
             <meshStandardMaterial color="#c4c6cb" roughness={0.3} metalness={0.7} />
           </RoundedBox>
-          <Instances limit={48}>
-            <boxGeometry args={[0.052, 0.014, 0.046]} />
+          <Instances limit={40}>
+            <boxGeometry args={[0.05, 0.014, 0.044]} />
             <meshStandardMaterial roughness={0.55} />
-            {Array.from({ length: 48 }, (_, key) => {
-              const row = Math.floor(key / 12);
-              const column = key % 12;
-              return <Instance key={key} position={[-0.355 + column * 0.0645, 0.016, -0.09 + row * 0.06]} color={key === 0 ? palette.accent : '#2c2d31'} />;
+            {Array.from({ length: 40 }, (_, key) => {
+              const row = Math.floor(key / 10);
+              const column = key % 10;
+              return <Instance key={key} position={[-0.27 + column * 0.06, 0.016, -0.084 + row * 0.056]} color={key === 0 ? palette.accent : '#2c2d31'} />;
             })}
           </Instances>
         </group>
         {/* Felt desk mat, mouse */}
-        <Block args={[0.42, 0.004, 1.34]} color="#3a3b3e" roughness={0.98} map={fabricMap()} position={[0.14, 0.992, -0.16]} castShadow={false} />
+        <Block args={[0.4, 0.004, 1.12]} color="#3a3b3e" roughness={0.98} map={fabricMap()} position={[0.28, 0.992, -0.2]} castShadow={false} />
         <DeskMouse />
         {/* Studio monitor speaker */}
         <group position={[-0.22, 0.99, 0.72]}>
@@ -1473,6 +1159,7 @@ function Workstation({ project, projectIndex, controlsVisible, onPrevious, onNex
         </group>
         <DeskPc />
         <DeskMug />
+        </group>
       </group>
     </group>
   );
@@ -1486,15 +1173,6 @@ function NotesTable() {
   const { goTo } = useRoom();
   return (
     <group position={[0.75, 0, 0.85]}>
-      {/* Rug */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
-        <circleGeometry args={[1.35, 48]} />
-        <meshStandardMaterial color={palette.rug} roughness={0.95} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]} receiveShadow>
-        <ringGeometry args={[1.18, 1.24, 48]} />
-        <meshStandardMaterial color="#b9a888" roughness={0.95} />
-      </mesh>
       {/* Round low table */}
       <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.72, 0.72, 0.06, 48]} />
@@ -1835,25 +1513,50 @@ function RoomFill() {
   return <pointLight ref={light} position={[0.5, 2.6, 0.5]} intensity={3.2} distance={8} decay={1.6} color="#ffd6a3" />;
 }
 
+// Rapier (WASM) loads only once the box has finished turning, and unloads if the visitor scrolls back to the
+// closed box (the room moves then, and physics bodies would not follow). Until it is ready the plush is static.
+const PhysicsToys = lazy(() => import('./room/Physics'));
+function PhysicsGate({ progressRef }) {
+  const [ready, setReady] = useState(false);
+  useFrame(() => {
+    const p = progressRef.current.smooth;
+    if (!ready && p > 0.2) setReady(true);
+    else if (ready && p < 0.19) setReady(false);
+  });
+  if (!ready) return <ClaudePlush />;
+  return (
+    <Suspense fallback={<ClaudePlush />}>
+      <PhysicsToys />
+    </Suspense>
+  );
+}
+
 function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVisible, onPrevious, onNext }) {
   const { theme } = useRoom();
   const { size } = useThree();
   // Stable elements: changing the visible card re-renders only the workstation, not the whole room.
   const staticRoom = useMemo(() => (
     <>
+      <Suspense fallback={null}><PbrSurfaces /></Suspense>
       <DisplayWall />
+      <Bed />
+      <Posters />
+      <PhysicsGate progressRef={progressRef} />
+      <Nightstand />
+      <ReadingCorner />
+      <Suspense fallback={null}><Rug /></Suspense>
       <NotesTable />
-      <Couch />
-      <Cat />
       <WallLamp />
       <WindowLight />
       <WindowCurtains />
       <FloorLamp />
-      <SideTable />
-      <Human />
+      <Suspense fallback={null}>
+        <Human Chair={OfficeChair} />
+        <Cat />
+      </Suspense>
       <Robot />
     </>
-  ), []);
+  ), [progressRef]);
   const firefly = useMemo(() => <Firefly />, []);
   const outer = useRef();
   const lid = useRef();
@@ -1954,7 +1657,7 @@ function BoxRoom({ progressRef, reducedMotion, project, projectIndex, controlsVi
 
         <OutsideWindow />
         {staticRoom}
-        <Workstation project={project} projectIndex={projectIndex} controlsVisible={controlsVisible} onPrevious={onPrevious} onNext={onNext} />
+        <Workstation project={project} projectIndex={projectIndex} controlsVisible={controlsVisible} onPrevious={onPrevious} onNext={onNext} progressRef={progressRef} />
         {theme === 'night' && firefly}
 
         {/* Warm interior fill (the room light) */}
@@ -2355,7 +2058,7 @@ function WallLamp() {
     if (glow.current) glow.current.intensity = light * (0.8 + night * 1.8);
   });
   return (
-    <Interactive label={lightOn ? 'Turn the room light off' : 'Turn the room light on'} onSelect={toggleLight} position={[-2.28, 2.42, -S + 0.02]} labelOffset={[0, 0.55, 0.2]}>
+    <Interactive label={lightOn ? 'Turn the room light off' : 'Turn the room light on'} onSelect={toggleLight} position={[-0.3, 2.2, -S + 0.02]} labelOffset={[0, 0.55, 0.2]}>
       {/* Round wooden wall plate */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.12, 0.02]} castShadow>
         <cylinderGeometry args={[0.07, 0.07, 0.03, 24]} />
@@ -2469,375 +2172,6 @@ function DeskPc() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Small couch facing the notes table                                   */
-/* ------------------------------------------------------------------ */
-
-const COUCH = { position: [-0.35, 0, -0.78], yaw: 0.62, seatY: 0.45 };
-const couchToRoom = (x, z) => {
-  const cos = Math.cos(COUCH.yaw);
-  const sin = Math.sin(COUCH.yaw);
-  return [COUCH.position[0] + x * cos + z * sin, COUCH.position[2] - x * sin + z * cos];
-};
-
-function Couch() {
-  const fabric = '#7f8b72';
-  const fabricDark = '#6f7a63';
-  return (
-    <group position={COUCH.position} rotation={[0, COUCH.yaw, 0]}>
-      {[[-0.52, -0.25], [0.52, -0.25], [-0.52, 0.25], [0.52, 0.25]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.05, z]} castShadow>
-          <cylinderGeometry args={[0.03, 0.022, 0.1, 8]} />
-          <meshStandardMaterial color={palette.timberDark} roughness={0.7} />
-        </mesh>
-      ))}
-      <RoundedBox args={[1.3, 0.22, 0.72]} radius={0.06} smoothness={2} position={[0, 0.21, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color={fabricDark} roughness={0.95} map={fabricMap()} />
-      </RoundedBox>
-      {[-0.27, 0.27].map((x) => (
-        <RoundedBox key={x} args={[0.54, 0.13, 0.58]} radius={0.05} smoothness={2} position={[x, 0.385, 0.05]} castShadow receiveShadow>
-          <meshStandardMaterial color={fabric} roughness={0.95} map={fabricMap()} />
-        </RoundedBox>
-      ))}
-      <RoundedBox args={[1.3, 0.46, 0.18]} radius={0.07} smoothness={2} position={[0, 0.52, -0.28]} castShadow receiveShadow>
-        <meshStandardMaterial color={fabric} roughness={0.95} map={fabricMap()} />
-      </RoundedBox>
-      {[-0.6, 0.6].map((x) => (
-        <RoundedBox key={x} args={[0.16, 0.36, 0.72]} radius={0.06} smoothness={2} position={[x, 0.4, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color={fabricDark} roughness={0.95} map={fabricMap()} />
-        </RoundedBox>
-      ))}
-      {/* Throw pillow and blanket */}
-      <RoundedBox args={[0.3, 0.28, 0.1]} radius={0.05} smoothness={2} position={[-0.36, 0.58, -0.14]} rotation={[-0.25, 0.25, 0.12]} castShadow>
-        <meshStandardMaterial color="#d0a24c" roughness={0.9} map={fabricMap()} />
-      </RoundedBox>
-      <Block args={[0.42, 0.02, 0.6]} color="#c4704e" map={fabricMap()} position={[0.3, 0.462, 0.06]} roughness={0.95} castShadow={false} />
-    </group>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Cat: walks a loop around the room, then naps on the couch             */
-/* ------------------------------------------------------------------ */
-
-const CAT_SEAT = (() => { const [x, z] = couchToRoom(0.28, 0.06); return new THREE.Vector3(x, COUCH.seatY + 0.02, z); })();
-const CAT_HOP = (() => { const [x, z] = couchToRoom(0.28, 0.66); return new THREE.Vector3(x, 0, z); })();
-const CAT_PATH = [
-  CAT_HOP,
-  new THREE.Vector3(1.0, 0, -1.62),
-  new THREE.Vector3(2.3, 0, -0.7),
-  new THREE.Vector3(2.42, 0, 1.3),
-  new THREE.Vector3(1.6, 0, 2.5),
-  new THREE.Vector3(0.0, 0, 2.5),
-  new THREE.Vector3(-1.2, 0, 1.6),
-  new THREE.Vector3(-1.0, 0, 0.45),
-];
-const CAT_SPEED = 0.48;
-const CAT_LOOPS = 2;
-const CAT_NAP = 28;
-
-const angleLerp = (from, to, t) => {
-  let delta = (to - from) % (Math.PI * 2);
-  if (delta > Math.PI) delta -= Math.PI * 2;
-  if (delta < -Math.PI) delta += Math.PI * 2;
-  return from + delta * t;
-};
-
-function Cat() {
-  const { reducedMotion, nightRef, lightRef } = useRoom();
-  const root = useRef();
-  const body = useRef();
-  const head = useRef();
-  const tail = useRef();
-  const tailSegments = [useRef(), useRef(), useRef(), useRef()];
-  const legs = [useRef(), useRef(), useRef(), useRef()];
-  const eyesOpen = useRef();
-  const eyesClosed = useRef();
-  const eyeMaterial = useRef();
-  const zs = [useRef(), useRef(), useRef()];
-  const [bubble, setBubble] = useState(null);
-  const bubbleTimer = useRef(0);
-  const state = useRef({ mode: reducedMotion ? 'sleep' : 'walk', segment: 0, along: 0, loops: 0, timer: 0, yaw: 0, from: new THREE.Vector3(), to: new THREE.Vector3() });
-
-  useEffect(() => { if (reducedMotion || window.__tourDebug?.catSleep) state.current.mode = 'sleep'; }, [reducedMotion]);
-  useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
-
-  const say = useCallback((text) => {
-    setBubble(text);
-    window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = window.setTimeout(() => setBubble(null), 2200);
-  }, []);
-
-  const onPet = useCallback(() => {
-    const cat = state.current;
-    if (cat.mode === 'sleep') {
-      say('mrrp? ♥');
-      if (!reducedMotion) { cat.mode = 'stretch'; cat.timer = 0; }
-    } else if (cat.mode === 'walk') {
-      say('meow ♥');
-      cat.mode = 'sit';
-      cat.timer = 0;
-    } else {
-      say('purr…');
-    }
-  }, [reducedMotion, say]);
-
-  useFrame(({ clock }, rawDelta) => {
-    const delta = Math.min(rawDelta, 0.1);
-    const cat = state.current;
-    const time = clock.elapsedTime;
-    if (!root.current) return;
-    let position = root.current.position;
-    let walking = false;
-    let sleeping = false;
-    let sitting = false;
-    let targetYaw = cat.yaw;
-    let lift = 0;
-
-    if (cat.mode === 'walk') {
-      walking = true;
-      const a = CAT_PATH[cat.segment];
-      const b = CAT_PATH[(cat.segment + 1) % CAT_PATH.length];
-      const length = a.distanceTo(b);
-      cat.along += CAT_SPEED * delta;
-      if (cat.along >= length) {
-        cat.along -= length;
-        cat.segment = (cat.segment + 1) % CAT_PATH.length;
-        if (cat.segment === 0) {
-          cat.loops += 1;
-          if (cat.loops >= (window.__tourDebug?.catLoops ?? CAT_LOOPS)) {
-            cat.mode = 'hopUp';
-            cat.timer = 0;
-            cat.loops = 0;
-          }
-        }
-      }
-      const from = CAT_PATH[cat.segment];
-      const to = CAT_PATH[(cat.segment + 1) % CAT_PATH.length];
-      const t = Math.min(1, cat.along / from.distanceTo(to));
-      position.lerpVectors(from, to, t);
-      targetYaw = Math.atan2(to.x - from.x, to.z - from.z);
-    } else if (cat.mode === 'sit') {
-      sitting = true;
-      cat.timer += delta;
-      if (cat.timer > 2.6) cat.mode = 'walk';
-    } else if (cat.mode === 'hopUp' || cat.mode === 'hopDown') {
-      cat.timer += delta;
-      const up = cat.mode === 'hopUp';
-      if (cat.timer < 0.5) {
-        // Turn toward the couch (or away from it) before the hop.
-        targetYaw = up ? Math.atan2(CAT_SEAT.x - CAT_HOP.x, CAT_SEAT.z - CAT_HOP.z) : Math.atan2(CAT_HOP.x - CAT_SEAT.x, CAT_HOP.z - CAT_SEAT.z);
-        sitting = true;
-      } else {
-        const t = Math.min(1, (cat.timer - 0.5) / 0.55);
-        const from = up ? CAT_HOP : CAT_SEAT;
-        const to = up ? CAT_SEAT : CAT_HOP;
-        position.lerpVectors(from, to, t);
-        lift = Math.sin(t * Math.PI) * 0.32;
-        if (t >= 1) {
-          cat.mode = up ? 'curl' : 'walk';
-          cat.timer = 0;
-          if (!up) { cat.segment = 0; cat.along = 0; }
-        }
-      }
-    } else if (cat.mode === 'curl') {
-      cat.timer += delta;
-      targetYaw = COUCH.yaw - Math.PI / 2 + 0.35;
-      sitting = cat.timer < 0.6;
-      if (cat.timer > 0.9) { cat.mode = 'sleep'; cat.timer = 0; }
-    } else if (cat.mode === 'sleep') {
-      sleeping = true;
-      position.copy(CAT_SEAT);
-      targetYaw = COUCH.yaw - Math.PI / 2 + 0.35;
-      cat.timer += delta;
-      if (!reducedMotion && cat.timer > CAT_NAP) { cat.mode = 'stretch'; cat.timer = 0; }
-    } else if (cat.mode === 'stretch') {
-      sitting = true;
-      position.copy(CAT_SEAT);
-      cat.timer += delta;
-      if (cat.timer > 1.3) { cat.mode = 'hopDown'; cat.timer = 0; }
-    }
-
-    position.y = (cat.mode === 'sleep' || cat.mode === 'curl' || cat.mode === 'stretch' ? CAT_SEAT.y : position.y) + lift;
-    if (cat.mode === 'hopUp' && cat.timer < 0.5) position.copy(CAT_HOP);
-    if (cat.mode === 'hopDown' && cat.timer < 0.5) position.copy(CAT_SEAT);
-
-    cat.yaw = reducedMotion ? targetYaw : angleLerp(cat.yaw, targetYaw, 1 - Math.pow(0.002, delta));
-    root.current.rotation.y = cat.yaw;
-
-    const ease = 1 - Math.pow(0.001, delta);
-    const stride = walking ? time * 9 : 0;
-    legs.forEach((leg, index) => {
-      if (!leg.current) return;
-      const swing = walking ? Math.sin(stride + (index % 2 === 0 ? 0 : Math.PI) + (index > 1 ? Math.PI : 0)) * 0.55 : 0;
-      leg.current.rotation.x = swing;
-      const target = sleeping ? 0.001 : 1;
-      leg.current.scale.y += (target - leg.current.scale.y) * ease;
-    });
-    if (body.current) {
-      const bob = walking ? Math.abs(Math.sin(stride)) * 0.012 : 0;
-      const breath = sleeping ? Math.sin(time * 1.6) * 0.012 : 0;
-      const targetY = sleeping ? 0.1 : sitting ? 0.19 : 0.2;
-      body.current.position.y += (targetY + bob - body.current.position.y) * ease;
-      body.current.rotation.x += ((sitting && !sleeping ? -0.35 : 0) - body.current.rotation.x) * ease;
-      const sx = sleeping ? 1.18 + breath : 1;
-      const sy = sleeping ? 0.78 + breath : 1;
-      const sz = sleeping ? 0.82 : 1;
-      body.current.scale.x += (sx - body.current.scale.x) * ease;
-      body.current.scale.y += (sy - body.current.scale.y) * ease;
-      body.current.scale.z += (sz - body.current.scale.z) * ease;
-    }
-    if (head.current) {
-      const target = sleeping ? [0.05, 0.15, 0.17] : sitting ? [0, 0.38, 0.16] : [0, 0.31, 0.21];
-      head.current.position.x += (target[0] - head.current.position.x) * ease;
-      head.current.position.y += (target[1] - head.current.position.y) * ease;
-      head.current.position.z += (target[2] - head.current.position.z) * ease;
-      const yaw = sleeping ? 0.7 : walking ? Math.sin(time * 1.3) * 0.12 : Math.sin(time * 0.8) * 0.3;
-      head.current.rotation.y += (yaw - head.current.rotation.y) * ease;
-      head.current.rotation.x += ((sleeping ? 0.25 : 0) - head.current.rotation.x) * ease;
-    }
-    if (tail.current) {
-      const curl = sleeping ? 1 : 0;
-      tail.current.rotation.y += ((sleeping ? 1.15 : Math.sin(time * (walking ? 3 : 1.4)) * 0.35) - tail.current.rotation.y) * ease;
-      tail.current.position.y += ((sleeping ? 0.08 : 0.24) - tail.current.position.y) * ease;
-      tailSegments.forEach((segment, index) => {
-        if (!segment.current) return;
-        const up = (index === 0 ? -0.9 : -0.25) * (1 - curl);
-        const flat = (index === 0 ? -1.45 : 0.05) * curl;
-        segment.current.rotation.x += (up + flat - segment.current.rotation.x) * ease;
-        segment.current.rotation.y += ((curl ? 0.55 : Math.sin(time * 2 + index) * 0.08) - segment.current.rotation.y) * ease;
-      });
-    }
-    if (eyesOpen.current) eyesOpen.current.visible = !sleeping;
-    if (eyesClosed.current) eyesClosed.current.visible = sleeping;
-    if (eyeMaterial.current) eyeMaterial.current.emissiveIntensity = nightRef.current.value * (1 - lightRef.current.value) * 2.2 + 0.15;
-    actors.cat.sleeping = cat.mode === 'sleep';
-    actors.cat.napLeft = cat.mode === 'sleep' ? CAT_NAP - cat.timer : 0;
-    actors.cat.position.copy(position);
-    if (typeof window !== 'undefined' && window.__tourDebug) {
-      const world = root.current.getWorldPosition(new THREE.Vector3());
-      window.__tourDebug.cat = { mode: cat.mode, x: +position.x.toFixed(2), z: +position.z.toFixed(2), world: world.toArray().map((v) => +v.toFixed(2)) };
-    }
-    zs.forEach((z, index) => {
-      if (!z.current) return;
-      const phase = ((time * 0.45 + index / 3) % 1);
-      z.current.visible = sleeping && !reducedMotion;
-      z.current.position.set(0.12 + phase * 0.12, 0.32 + phase * 0.35, 0.1);
-      z.current.fillOpacity = Math.sin(phase * Math.PI);
-      z.current.scale.setScalar(0.6 + phase * 0.6);
-    });
-  });
-
-  const fur = '#5b5462';
-  const cream = '#f3e6d4';
-  const pink = '#f2a5b4';
-  return (
-    <group ref={root} position={reducedMotion ? CAT_SEAT : CAT_PATH[0]} scale={1.3}>
-      <Interactive label="Pet the cat" onSelect={onPet} labelOffset={[0, 0.62, 0]}>
-        {/* Invisible, generous hit area */}
-        <mesh position={[0, 0.24, 0]}>
-          <boxGeometry args={[0.36, 0.48, 0.62]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
-        </mesh>
-        <group ref={body} position={[0, 0.2, 0]}>
-          <RoundedBox args={[0.2, 0.17, 0.38]} radius={0.075} smoothness={3} castShadow>
-            <meshStandardMaterial color={fur} roughness={0.85} />
-          </RoundedBox>
-          <RoundedBox args={[0.15, 0.06, 0.26]} radius={0.03} smoothness={2} position={[0, -0.06, 0.02]}>
-            <meshStandardMaterial color={cream} roughness={0.9} />
-          </RoundedBox>
-        </group>
-        <group ref={head} position={[0, 0.31, 0.21]}>
-          <RoundedBox args={[0.2, 0.17, 0.17]} radius={0.075} smoothness={3} castShadow>
-            <meshStandardMaterial color={fur} roughness={0.85} />
-          </RoundedBox>
-          {[-1, 1].map((side) => (
-            <group key={side} position={[side * 0.06, 0.09, -0.01]} rotation={[0, 0, -side * 0.28]}>
-              <mesh castShadow>
-                <coneGeometry args={[0.045, 0.085, 4]} />
-                <meshStandardMaterial color={fur} roughness={0.85} />
-              </mesh>
-              <mesh position={[0, -0.005, 0.018]} scale={[0.6, 0.65, 0.4]}>
-                <coneGeometry args={[0.045, 0.085, 4]} />
-                <meshStandardMaterial color={pink} roughness={0.8} />
-              </mesh>
-            </group>
-          ))}
-          <mesh position={[0, -0.035, 0.08]} scale={[1, 0.65, 0.6]}>
-            <sphereGeometry args={[0.055, 14, 10]} />
-            <meshStandardMaterial color={cream} roughness={0.9} />
-          </mesh>
-          <mesh position={[0, -0.012, 0.112]}>
-            <sphereGeometry args={[0.012, 8, 6]} />
-            <meshStandardMaterial color={pink} roughness={0.6} />
-          </mesh>
-          <group ref={eyesOpen}>
-            {[-1, 1].map((side) => (
-              <mesh key={side} position={[side * 0.048, 0.02, 0.083]}>
-                <sphereGeometry args={[0.019, 10, 8]} />
-                <meshStandardMaterial ref={side === 1 ? eyeMaterial : undefined} color="#2a2024" emissive="#ffd66e" emissiveIntensity={0.15} roughness={0.3} />
-              </mesh>
-            ))}
-          </group>
-          <group ref={eyesClosed} visible={false}>
-            {[-1, 1].map((side) => (
-              <Block key={side} args={[0.035, 0.007, 0.01]} color="#2a2024" position={[side * 0.048, 0.015, 0.088]} castShadow={false} receiveShadow={false} />
-            ))}
-          </group>
-        </group>
-        {[[-0.06, 0.13], [0.06, 0.13], [-0.06, -0.13], [0.06, -0.13]].map(([x, z], index) => (
-          <group key={index} ref={legs[index]} position={[x, 0.15, z]}>
-            <mesh position={[0, -0.075, 0]} castShadow>
-              <cylinderGeometry args={[0.028, 0.026, 0.15, 8]} />
-              <meshStandardMaterial color={fur} roughness={0.85} />
-            </mesh>
-            <mesh position={[0, -0.145, 0.008]} scale={[1, 0.6, 1.25]}>
-              <sphereGeometry args={[0.03, 10, 8]} />
-              <meshStandardMaterial color={cream} roughness={0.9} />
-            </mesh>
-          </group>
-        ))}
-        <group ref={tail} position={[0, 0.24, -0.18]}>
-          <group ref={tailSegments[0]}>
-            <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.022, 0.024, 0.09, 8]} />
-              <meshStandardMaterial color={fur} roughness={0.85} />
-            </mesh>
-            <group ref={tailSegments[1]} position={[0, 0, -0.085]}>
-              <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.02, 0.022, 0.09, 8]} />
-                <meshStandardMaterial color={fur} roughness={0.85} />
-              </mesh>
-              <group ref={tailSegments[2]} position={[0, 0, -0.085]}>
-                <mesh position={[0, 0, -0.04]} rotation={[Math.PI / 2, 0, 0]}>
-                  <cylinderGeometry args={[0.019, 0.02, 0.09, 8]} />
-                  <meshStandardMaterial color={fur} roughness={0.85} />
-                </mesh>
-                <group ref={tailSegments[3]} position={[0, 0, -0.085]}>
-                  <mesh position={[0, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
-                    <cylinderGeometry args={[0.017, 0.019, 0.08, 8]} />
-                    <meshStandardMaterial color={cream} roughness={0.9} />
-                  </mesh>
-                </group>
-              </group>
-            </group>
-          </group>
-        </group>
-        {zs.map((z, index) => (
-          <Text key={index} ref={z} font={FONT} fontSize={0.07} color="#7b6fd0" anchorX="center" anchorY="middle" visible={false}>
-            z
-          </Text>
-        ))}
-      </Interactive>
-      {bubble && (
-        <Html position={[0, 0.7, 0]} center zIndexRange={[26, 0]} wrapperClass="box-tour-html">
-          <span className="box-tour-cat-bubble" role="status">{bubble}</span>
-        </Html>
-      )}
-    </group>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Firefly (night only) with a fading light trail                       */
 /* ------------------------------------------------------------------ */
 
@@ -2919,25 +2253,13 @@ function Firefly() {
 /* Actors: the person at the desk and the helper robot                   */
 /* ------------------------------------------------------------------ */
 
-// Shared, frame-by-frame state. Each actor writes its own entry in useFrame and reads the others, so the
-// person, the robot, the cat and the desk props can react to each other without React re-renders.
-const actors = {
-  cat: { sleeping: false, napLeft: 0, petting: false, position: new THREE.Vector3() },
-  human: { mugInHand: false, mouse: new THREE.Vector2(), atDesk: true, head: new THREE.Vector3(-1.82, 1.7, -0.47) },
-  robot: { position: new THREE.Vector3(0.6, 1.5, 1.6), helping: false },
-};
 
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpA = new THREE.Vector3();
 const tmpB = new THREE.Vector3();
 const tmpC = new THREE.Vector3();
-const tmpQ = new THREE.Quaternion();
-const tmpE = new THREE.Euler(0, 0, 0, 'YXZ');
 
 // Desk-local props the person touches (the desk group sits at [-S + 0.42, 0, -0.3]).
-const DESK_ORIGIN = new THREE.Vector3(-S + 0.42, 0, -0.3);
-const MOUSE_HOME = [0.15, 0.992, -0.58];
-const MUG_HOME = [0.3, 0.99, 0.36];
 
 function DeskMouse() {
   const ref = useRef();
@@ -2995,605 +2317,6 @@ function DeskMug() {
           <mesh key={index}>
             <sphereGeometry args={[0.018, 10, 8]} />
             <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  );
-}
-
-/* ---------- Human: a procedurally rigged figure with simple two-bone IK ---------- */
-
-const DESK_SIT = new THREE.Vector3(-1.84, 0, -0.47);
-const DESK_STAND = new THREE.Vector3(-1.6, 0, -0.47);
-const DESK_YAW = -Math.PI / 2;
-const COUCH_SEAT = (() => { const [x, z] = couchToRoom(-0.28, 0.06); return new THREE.Vector3(x, 0, z); })();
-const COUCH_APPROACH = (() => { const [x, z] = couchToRoom(-0.28, 0.72); return new THREE.Vector3(x, 0, z); })();
-const WINDOW_SPOT = new THREE.Vector3(-2.2, 0, 1.85);
-const HUB = new THREE.Vector3(-1.58, 0, 0.32);
-const SPOKES = {
-  desk: [DESK_STAND],
-  couch: [COUCH_APPROACH, new THREE.Vector3(-0.6, 0, 0.36)],
-  window: [WINDOW_SPOT, new THREE.Vector3(-1.78, 0, 1.3)],
-};
-const routeBetween = (from, to) => [...SPOKES[from], HUB, ...[...SPOKES[to]].reverse()];
-
-const SKIN = '#c68e6e';
-const HOODIE = '#56604f';
-const HOODIE_DARK = '#454e40';
-const DENIM = '#2f3a4c';
-const HAIR = '#1c1512';
-
-const L = { thigh: 0.47, shin: 0.47, upper: 0.31, fore: 0.28 };
-
-// Two-bone IK: places the middle joint so both segments keep their length, bending toward `pole`.
-function solveLimb(root, target, l1, l2, pole, joint, end) {
-  const dir = tmpA.subVectors(target, root);
-  let distance = dir.length() || 0.0001;
-  dir.divideScalar(distance);
-  distance = THREE.MathUtils.clamp(distance, Math.abs(l1 - l2) + 0.01, (l1 + l2) * 0.998);
-  const along = (l1 * l1 - l2 * l2 + distance * distance) / (2 * distance);
-  const height = Math.sqrt(Math.max(0, l1 * l1 - along * along));
-  const bend = tmpB.copy(pole).addScaledVector(dir, -pole.dot(dir)).normalize();
-  joint.copy(root).addScaledVector(dir, along).addScaledVector(bend, height);
-  end.copy(root).addScaledVector(dir, distance);
-}
-
-// Stretch a unit-height cylinder between two points.
-function placeSegment(mesh, a, b) {
-  if (!mesh) return;
-  mesh.position.addVectors(a, b).multiplyScalar(0.5);
-  const length = a.distanceTo(b);
-  tmpC.subVectors(b, a).divideScalar(length || 1);
-  mesh.quaternion.setFromUnitVectors(UP, tmpC);
-  mesh.scale.set(1, Math.max(length, 0.001), 1);
-}
-
-function roomToLocal(point, rootPosition, yaw, out) {
-  out.subVectors(point, rootPosition);
-  return out.applyAxisAngle(UP, -yaw);
-}
-
-function makePose() {
-  return {
-    pelvis: new THREE.Vector3(0, 0.7, -0.02), lean: 0.2, twist: 0, headYaw: 0, headPitch: 0,
-    handL: new THREE.Vector3(0.17, 1.05, 0.58), handR: new THREE.Vector3(-0.03, 1.05, 0.58),
-    footL: new THREE.Vector3(0.14, 0.05, 0.48), footR: new THREE.Vector3(-0.14, 0.05, 0.48),
-    elbowOut: 1, kneeForward: 1,
-  };
-}
-
-function lerpPose(pose, target, k) {
-  pose.pelvis.lerp(target.pelvis, k);
-  pose.handL.lerp(target.handL, k);
-  pose.handR.lerp(target.handR, k);
-  pose.footL.lerp(target.footL, k);
-  pose.footR.lerp(target.footR, k);
-  pose.lean += (target.lean - pose.lean) * k;
-  pose.twist += (target.twist - pose.twist) * k;
-  pose.headYaw += (target.headYaw - pose.headYaw) * k;
-  pose.headPitch += (target.headPitch - pose.headPitch) * k;
-}
-
-const HUMAN_LINES = {
-  desk: ['Shipping one more Qline fix.', 'Tests first, then the merge.', 'Hi! Scroll on to see my work.'],
-  couch: ['Break time with the cat.', 'She approves this build.'],
-  window: ['Coffee break while you look at my projects.', 'The screen is all yours.'],
-  walk: ['Be right back.'],
-};
-
-function Human() {
-  const { reducedMotion, phaseRef } = useRoom();
-  const root = useRef();
-  const chair = useRef();
-  const torso = useRef();
-  const head = useRef();
-  const pelvisMesh = useRef();
-  const mugInHand = useRef();
-  const hearts = useRef();
-  const parts = useRef({});
-  const bind = (name) => (node) => { parts.current[name] = node; };
-  const [bubble, setBubble] = useState(null);
-  const bubbleTimer = useRef(0);
-  const pose = useMemo(() => makePose(), []);
-  const target = useMemo(() => makePose(), []);
-  const joints = useMemo(() => ({
-    shoulderL: new THREE.Vector3(), shoulderR: new THREE.Vector3(), elbowL: new THREE.Vector3(), elbowR: new THREE.Vector3(),
-    wristL: new THREE.Vector3(), wristR: new THREE.Vector3(), hipL: new THREE.Vector3(), hipR: new THREE.Vector3(),
-    kneeL: new THREE.Vector3(), kneeR: new THREE.Vector3(), ankleL: new THREE.Vector3(), ankleR: new THREE.Vector3(),
-    headPos: new THREE.Vector3(), mouth: new THREE.Vector3(), local: new THREE.Vector3(), pole: new THREE.Vector3(),
-  }), []);
-  const state = useRef({
-    mode: 'desk', t: 0, activity: 0, activityT: 0, position: DESK_SIT.clone(), yaw: DESK_YAW,
-    route: [], routeIndex: 0, destination: 'desk', walkPhase: 0, lastCouch: -20, clock: 0,
-    chairOffset: new THREE.Vector3(), chairYaw: 0, wave: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
-  });
-
-  useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
-
-  const onClick = useCallback(() => {
-    const s = state.current;
-    s.wave = 2.2;
-    const key = s.mode === 'couch' ? 'couch' : s.mode === 'window' ? 'window' : s.mode === 'walk' ? 'walk' : 'desk';
-    const lines = HUMAN_LINES[key];
-    setBubble(lines[Math.floor(Math.random() * lines.length)]);
-    window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = window.setTimeout(() => setBubble(null), 2600);
-  }, []);
-
-  // Desk activities in a loop: [name, seconds]
-  const ACTIVITIES = useMemo(() => [['type', 7], ['mouse', 6], ['type', 4], ['drink', 5.5], ['mouse', 7], ['stretch', 3.4], ['type', 5], ['mouse', 5]], []);
-
-  useFrame(({ clock }, rawDelta) => {
-    const delta = Math.min(rawDelta, 0.1);
-    const s = state.current;
-    const time = clock.elapsedTime;
-    s.clock = time;
-    if (!root.current) return;
-
-    // Where should the person be? The screen is left free on the Projects stop; the cat gets a visit while it naps.
-    const stop = phaseRef.current;
-    let goal = 'desk';
-    if (!reducedMotion) {
-      if (stop === 'computer') goal = 'window';
-      else if (s.mode === 'couch' && s.t < 14 && actors.cat.sleeping) goal = 'couch';
-      else if (s.mode === 'walk' && s.destination === 'couch' && actors.cat.sleeping) goal = 'couch';
-      else if (actors.cat.sleeping && actors.cat.napLeft > 13 && time - s.lastCouch > 30 && stop !== 'notes') goal = 'couch';
-    }
-
-    const t = target;
-    const startWalk = (from, to) => {
-      s.mode = 'walk';
-      s.route = routeBetween(from, to);
-      s.routeIndex = 0;
-      s.destination = to;
-      s.t = 0;
-    };
-
-    s.t += delta;
-    // ---- state machine ----
-    if (s.mode === 'desk') {
-      if (goal !== 'desk') { s.mode = 'rise'; s.t = 0; if (goal === 'window') actors.human.mugInHand = true; }
-    } else if (s.mode === 'rise') {
-      s.position.lerpVectors(DESK_SIT, DESK_STAND, smooth(clamp01(s.t / 1.1)));
-      if (s.t > 1.1) startWalk('desk', goal);
-    } else if (s.mode === 'walk') {
-      const next = s.route[s.routeIndex];
-      tmpA.subVectors(next, s.position);
-      tmpA.y = 0;
-      const distance = tmpA.length();
-      const speed = 0.62;
-      if (distance < 0.04) {
-        s.routeIndex += 1;
-        if (s.routeIndex >= s.route.length) {
-          s.mode = s.destination === 'couch' ? 'sitCouch' : s.destination === 'window' ? 'window' : 'sitDesk';
-          s.t = 0;
-          s.from.copy(s.position);
-        }
-      } else {
-        s.position.addScaledVector(tmpA.normalize(), Math.min(distance, speed * delta));
-        s.yaw = angleLerp(s.yaw, Math.atan2(tmpA.x, tmpA.z), 1 - Math.pow(0.0004, delta));
-        s.walkPhase += delta * speed / 0.42 * Math.PI;
-      }
-      // Change of plan mid-walk: head for the new goal from the nearest hub.
-      if (s.mode === 'walk' && goal !== s.destination && s.routeIndex > 0) {
-        s.route = [HUB, ...[...SPOKES[goal]].reverse()];
-        s.routeIndex = 0;
-        s.destination = goal;
-      }
-    } else if (s.mode === 'sitCouch') {
-      s.yaw = angleLerp(s.yaw, COUCH.yaw, 1 - Math.pow(0.0005, delta));
-      const k = smooth(clamp01((s.t - 0.35) / 1));
-      s.position.lerpVectors(s.from, COUCH_SEAT, k);
-      if (s.t > 1.4) { s.mode = 'couch'; s.t = 0; }
-    } else if (s.mode === 'couch') {
-      actors.cat.petting = true;
-      if (goal !== 'couch') { s.mode = 'riseCouch'; s.t = 0; s.lastCouch = time; actors.cat.petting = false; }
-    } else if (s.mode === 'riseCouch') {
-      const k = smooth(clamp01(s.t / 1));
-      s.position.lerpVectors(COUCH_SEAT, COUCH_APPROACH, k);
-      if (s.t > 1.05) { s.position.copy(COUCH_APPROACH); startWalk('couch', goal === 'couch' ? 'desk' : goal); }
-    } else if (s.mode === 'window') {
-      s.yaw = angleLerp(s.yaw, DESK_YAW, 1 - Math.pow(0.001, delta));
-      if (goal !== 'window') startWalk('window', goal);
-    } else if (s.mode === 'sitDesk') {
-      s.yaw = angleLerp(s.yaw, DESK_YAW, 1 - Math.pow(0.0005, delta));
-      const k = smooth(clamp01((s.t - 0.3) / 0.9));
-      s.position.lerpVectors(s.from, DESK_SIT, k);
-      if (s.t > 1.3) { s.mode = 'desk'; s.t = 0; actors.human.mugInHand = false; s.activity = 0; s.activityT = 0; }
-    }
-    if (s.mode !== 'couch') actors.cat.petting = false;
-
-    // ---- target pose ----
-    const seatedDesk = s.mode === 'desk';
-    const standing = s.mode === 'walk' || s.mode === 'window';
-    actors.human.atDesk = seatedDesk;
-    actors.human.mouse.lerp(tmpB.set(0, 0), 0.1);
-
-    // Head target defaults: the monitor.
-    const lookAt = (point) => {
-      roomToLocal(point, s.position, s.yaw, joints.local);
-      const dx = joints.local.x - joints.headPos.x;
-      const dy = joints.local.y - joints.headPos.y;
-      const dz = joints.local.z - joints.headPos.z;
-      t.headYaw = THREE.MathUtils.clamp(Math.atan2(dx, dz) - t.twist, -1.1, 1.1);
-      t.headPitch = THREE.MathUtils.clamp(-Math.atan2(dy, Math.hypot(dx, dz)), -0.6, 0.5);
-    };
-
-    if (seatedDesk || s.mode === 'rise' || s.mode === 'sitDesk') {
-      const [name, length] = reducedMotion ? ['type', 1e9] : ACTIVITIES[s.activity % ACTIVITIES.length];
-      if (seatedDesk) {
-        s.activityT += delta;
-        if (s.activityT > length) { s.activityT = 0; s.activity += 1; }
-      }
-      t.pelvis.set(0, 0.7, -0.02);
-      t.lean = 0.22;
-      t.twist = 0;
-      t.footL.set(0.15, 0.05, 0.47);
-      t.footR.set(-0.13, 0.05, 0.5);
-      const typing = (offset) => (reducedMotion ? 0 : Math.max(0, Math.sin(time * 13 + offset)) * 0.012);
-      t.handL.set(0.27, 1.05 + typing(0), 0.57);
-      t.handR.set(-0.02, 1.05 + typing(2.1), 0.57);
-      lookAt(tmpC.set(-2.78, 1.62, -0.35));
-      const progress = s.activityT / length;
-      if (seatedDesk && name === 'mouse') {
-        const mx = Math.sin(time * 1.3) * 0.035 + Math.sin(time * 3.1) * 0.012;
-        const mz = Math.cos(time * 0.9) * 0.05;
-        actors.human.mouse.set(mx, mz);
-        t.handR.set(-0.41 + mz, 1.045, 0.59 - mx);
-        t.handL.set(0.27, 1.05 + typing(0) * 0.4, 0.57);
-        t.twist = -0.12;
-        t.lean = 0.26;
-      } else if (seatedDesk && name === 'drink') {
-        // reach → lift to mouth → sip → put down
-        const rest = tmpC.set(0.27, 1.05, 0.57);
-        const mugPoint = tmpA.set(0.5, 1.07, 0.44);
-        const mouthPoint = tmpB.set(0.07, 1.6, 0.3);
-        const reach = smooth(clamp01(progress / 0.18));
-        const lift = smooth(clamp01((progress - 0.2) / 0.15));
-        const lower = smooth(clamp01((progress - 0.72) / 0.14));
-        const back = smooth(clamp01((progress - 0.88) / 0.12));
-        actors.human.mugInHand = progress > 0.18 && progress < 0.88;
-        if (progress < 0.2) t.handL.lerpVectors(rest, mugPoint, reach);
-        else if (progress < 0.72) t.handL.lerpVectors(mugPoint, mouthPoint, lift);
-        else if (progress < 0.88) t.handL.lerpVectors(mouthPoint, mugPoint, lower);
-        else t.handL.lerpVectors(mugPoint, rest, back);
-        t.twist = 0.12 * reach * (1 - back);
-        t.lean = 0.16;
-        if (lift > 0.5 && lower < 0.5) t.headPitch = -0.25;
-      } else if (seatedDesk && name === 'stretch') {
-        const up = Math.sin(clamp01(progress) * Math.PI);
-        t.handL.lerp(tmpA.set(0.16, 2.0, 0.02), up);
-        t.handR.lerp(tmpA.set(-0.16, 2.0, 0.02), up);
-        t.lean = THREE.MathUtils.lerp(0.22, -0.16, up);
-        t.headPitch = -0.3 * up;
-      }
-      // Look at the robot when it comes to help.
-      if (seatedDesk && actors.robot.helping && name !== 'drink') {
-        lookAt(actors.robot.position);
-        t.twist = THREE.MathUtils.clamp(t.headYaw * 0.25, -0.3, 0.3);
-      }
-      if (s.mode === 'rise' || s.mode === 'sitDesk') {
-        const k = s.mode === 'rise' ? smooth(clamp01((s.t - 0.25) / 0.8)) : 1 - smooth(clamp01((s.t - 0.25) / 0.9));
-        t.pelvis.lerp(tmpA.set(0, 0.98, 0.0), k);
-        t.lean = THREE.MathUtils.lerp(0.22, 0.05, k) + Math.sin(k * Math.PI) * 0.35;
-        t.footL.lerp(tmpA.set(0.11, 0.05, 0.05), k);
-        t.footR.lerp(tmpA.set(-0.11, 0.05, 0.02), k);
-        t.handL.lerp(tmpA.set(0.24, 0.95, 0.05), k);
-        t.handR.lerp(tmpA.set(-0.24, 0.95, 0.05), k);
-        if (actors.human.mugInHand) t.handL.lerp(tmpA.set(0.12, 1.28, 0.3), k);
-      }
-    } else if (s.mode === 'walk') {
-      const phase = s.walkPhase;
-      const lift = (value) => Math.max(0, Math.cos(value)) * 0.09;
-      t.pelvis.set(0, 0.96 + Math.cos(phase * 2) * 0.015, 0);
-      t.lean = 0.06;
-      t.twist = Math.sin(phase) * 0.08;
-      t.footL.set(0.1, 0.05 + lift(phase), Math.sin(phase) * 0.22);
-      t.footR.set(-0.1, 0.05 + lift(phase + Math.PI), Math.sin(phase + Math.PI) * 0.22);
-      t.handL.set(0.23, 0.95, -Math.sin(phase) * 0.17);
-      t.handR.set(-0.23, 0.95, Math.sin(phase) * 0.17);
-      if (actors.human.mugInHand) t.handL.set(0.12, 1.28, 0.3);
-      t.headYaw = 0;
-      t.headPitch = 0.08;
-    } else if (s.mode === 'window') {
-      t.pelvis.set(0, 0.97, 0);
-      t.lean = 0.02;
-      t.twist = 0;
-      t.footL.set(0.12, 0.05, 0.04);
-      t.footR.set(-0.12, 0.05, -0.02);
-      const sip = (s.t % 6) / 6;
-      const up = sip > 0.55 && sip < 0.85 ? Math.sin(((sip - 0.55) / 0.3) * Math.PI) : 0;
-      t.handL.set(0.12, 1.28, 0.3).lerp(tmpA.set(0.07, 1.62, 0.3), up);
-      t.handR.set(-0.22, 0.98, 0.06);
-      t.headYaw = Math.sin(time * 0.3) * 0.25;
-      t.headPitch = -0.08 - up * 0.2;
-    } else if (s.mode === 'sitCouch' || s.mode === 'couch' || s.mode === 'riseCouch') {
-      const k = s.mode === 'sitCouch' ? smooth(clamp01((s.t - 0.35) / 1)) : s.mode === 'riseCouch' ? 1 - smooth(clamp01(s.t / 1)) : 1;
-      t.pelvis.set(0, 0.97, 0).lerp(tmpA.set(0, 0.56, 0.02), k);
-      t.lean = THREE.MathUtils.lerp(0.05, -0.08, k) + Math.sin(k * Math.PI) * 0.3;
-      t.footL.set(0.11, 0.05, 0.03).lerp(tmpA.set(0.16, 0.05, 0.56), k);
-      t.footR.set(-0.11, 0.05, 0.03).lerp(tmpA.set(-0.16, 0.05, 0.58), k);
-      t.handL.set(0.24, 0.95, 0.05).lerp(tmpA.set(0.16, 0.66, 0.34), k);
-      t.handR.set(-0.24, 0.95, 0.05).lerp(tmpA.set(-0.16, 0.66, 0.34), k);
-      t.twist = 0;
-      t.headYaw = 0;
-      t.headPitch = 0;
-      if (s.mode === 'couch') {
-        // Pet the cat with the left hand (the cat naps on the right-hand cushion, which is his left).
-        roomToLocal(actors.cat.position, s.position, s.yaw, joints.local);
-        const stroke = Math.sin(time * 2.3);
-        t.handL.set(joints.local.x - 0.02 + stroke * 0.07, joints.local.y + 0.16 - Math.abs(stroke) * 0.015, joints.local.z + 0.02);
-        t.twist = 0.32;
-        t.lean = 0.12;
-        lookAt(tmpC.copy(actors.cat.position).setY(actors.cat.position.y + 0.1));
-      }
-    }
-
-    // Wave when clicked (right hand), on top of whatever he is doing.
-    if (s.wave > 0) {
-      s.wave = Math.max(0, s.wave - delta);
-      const w = Math.min(1, s.wave * 2, (2.2 - s.wave) * 3);
-      t.handR.lerp(tmpA.set(-0.3 + Math.sin(time * 12) * 0.06, t.pelvis.y + 0.95, 0.18), w);
-    }
-
-    // Breathing.
-    const breath = reducedMotion ? 0 : Math.sin(time * 1.7) * 0.006;
-    t.pelvis.y += breath * 0.3;
-
-    lerpPose(pose, t, s.mode === 'walk' ? 1 - Math.pow(0.00001, delta) : 1 - Math.pow(0.002, delta));
-
-    // ---- apply ----
-    root.current.position.copy(s.position);
-    root.current.rotation.y = s.yaw;
-
-    if (pelvisMesh.current) pelvisMesh.current.position.copy(pose.pelvis);
-    if (torso.current) {
-      torso.current.position.copy(pose.pelvis);
-      torso.current.rotation.set(pose.lean, pose.twist, 0, 'YXZ');
-      torso.current.scale.y = 1 + breath;
-    }
-    if (head.current) head.current.rotation.set(pose.headPitch, pose.headYaw, 0, 'YXZ');
-
-    tmpE.set(pose.lean, pose.twist, 0, 'YXZ');
-    tmpQ.setFromEuler(tmpE);
-    joints.shoulderL.set(0.19, 0.5, -0.01).applyQuaternion(tmpQ).add(pose.pelvis);
-    joints.shoulderR.set(-0.19, 0.5, -0.01).applyQuaternion(tmpQ).add(pose.pelvis);
-    joints.headPos.set(0, 0.76, 0.02).applyQuaternion(tmpQ).add(pose.pelvis);
-    joints.hipL.set(0.095, -0.03, 0).add(pose.pelvis);
-    joints.hipR.set(-0.095, -0.03, 0).add(pose.pelvis);
-
-    const p = parts.current;
-    // Arms: elbows bend down and out (or back while walking).
-    joints.pole.set(0.6, -1, standing ? -0.6 : -0.25);
-    solveLimb(joints.shoulderL, pose.handL, L.upper, L.fore, joints.pole, joints.elbowL, joints.wristL);
-    joints.pole.set(-0.6, -1, standing ? -0.6 : -0.25);
-    solveLimb(joints.shoulderR, pose.handR, L.upper, L.fore, joints.pole, joints.elbowR, joints.wristR);
-    // Legs: knees bend forward.
-    joints.pole.set(0.05, 0.2, 1);
-    solveLimb(joints.hipL, pose.footL, L.thigh, L.shin, joints.pole, joints.kneeL, joints.ankleL);
-    joints.pole.set(-0.05, 0.2, 1);
-    solveLimb(joints.hipR, pose.footR, L.thigh, L.shin, joints.pole, joints.kneeR, joints.ankleR);
-
-    placeSegment(p.upperL, joints.shoulderL, joints.elbowL);
-    placeSegment(p.foreL, joints.elbowL, joints.wristL);
-    placeSegment(p.upperR, joints.shoulderR, joints.elbowR);
-    placeSegment(p.foreR, joints.elbowR, joints.wristR);
-    placeSegment(p.thighL, joints.hipL, joints.kneeL);
-    placeSegment(p.shinL, joints.kneeL, joints.ankleL);
-    placeSegment(p.thighR, joints.hipR, joints.kneeR);
-    placeSegment(p.shinR, joints.kneeR, joints.ankleR);
-    [['shoulderBallL', joints.shoulderL], ['shoulderBallR', joints.shoulderR], ['elbowBallL', joints.elbowL], ['elbowBallR', joints.elbowR], ['kneeBallL', joints.kneeL], ['kneeBallR', joints.kneeR]].forEach(([name, point]) => p[name]?.position.copy(point));
-    // Hands extend past the wrist along the forearm.
-    [['handL', joints.elbowL, joints.wristL], ['handR', joints.elbowR, joints.wristR]].forEach(([name, elbow, wrist]) => {
-      const hand = p[name];
-      if (!hand) return;
-      tmpC.subVectors(wrist, elbow).normalize();
-      hand.position.copy(wrist).addScaledVector(tmpC, 0.045);
-      hand.quaternion.setFromUnitVectors(UP, tmpC);
-    });
-    // Shoes sit flat and point forward (with a little toe-off while walking).
-    [['shoeL', joints.ankleL, pose.footL], ['shoeR', joints.ankleR, pose.footR]].forEach(([name, ankle, foot]) => {
-      const shoe = p[name];
-      if (!shoe) return;
-      shoe.position.copy(ankle);
-      shoe.rotation.set(s.mode === 'walk' ? -(foot.y - 0.05) * 2.5 : 0, 0, 0);
-    });
-
-    if (mugInHand.current) {
-      mugInHand.current.visible = actors.human.mugInHand;
-      tmpC.subVectors(joints.wristL, joints.elbowL).normalize();
-      mugInHand.current.position.copy(joints.wristL).addScaledVector(tmpC, 0.06).add(tmpA.set(-0.03, 0.02, 0));
-      const sipping = pose.handL.y > 1.5;
-      mugInHand.current.rotation.set(sipping ? -0.5 : 0, 1.6, 0);
-    }
-
-    // Chair: rolls back when he stands up, back in when he sits.
-    if (chair.current) {
-      const out = s.mode === 'desk' ? 0 : s.mode === 'rise' ? smooth(clamp01(s.t / 0.9)) : s.mode === 'sitDesk' ? 1 - smooth(clamp01((s.t - 0.2) / 1)) : 1;
-      chair.current.position.set(DESK_SIT.x + 0.06 + out * 0.35, 0, DESK_SIT.z - out * 0.45);
-      chair.current.rotation.y = out * 0.6;
-    }
-
-    // Hearts over the cat while it is being petted.
-    if (hearts.current) {
-      hearts.current.visible = s.mode === 'couch' && !reducedMotion;
-      hearts.current.position.copy(actors.cat.position);
-      hearts.current.children.forEach((heart, index) => {
-        const phase = (time * 0.5 + index / 3) % 1;
-        heart.position.set(Math.sin(phase * 5 + index) * 0.06, 0.3 + phase * 0.4, 0);
-        heart.material.opacity = Math.sin(phase * Math.PI) * 0.9;
-        heart.scale.setScalar(0.6 + phase * 0.5);
-      });
-    }
-
-    // Publish the head position (room space) for the robot.
-    actors.human.head.copy(joints.headPos).applyAxisAngle(UP, s.yaw).add(s.position);
-    if (typeof window !== 'undefined' && window.__tourDebug) window.__tourDebug.human = { mode: s.mode, activity: ACTIVITIES[s.activity % ACTIVITIES.length][0], x: +s.position.x.toFixed(2), z: +s.position.z.toFixed(2) };
-  });
-
-  const heartShape = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, -0.03);
-    shape.bezierCurveTo(-0.05, 0.0, -0.035, 0.045, 0, 0.022);
-    shape.bezierCurveTo(0.035, 0.045, 0.05, 0.0, 0, -0.03);
-    return shape;
-  }, []);
-
-  const sleeve = (name, rTop, rBottom, color = HOODIE) => (
-    <mesh ref={bind(name)} castShadow>
-      <cylinderGeometry args={[rTop, rBottom, 1, 14]} />
-      <meshStandardMaterial color={color} roughness={0.92} map={fabricMap()} />
-    </mesh>
-  );
-  const ball = (name, radius, color) => (
-    <mesh ref={bind(name)} castShadow>
-      <sphereGeometry args={[radius, 16, 12]} />
-      <meshStandardMaterial color={color} roughness={0.9} map={color === DENIM || color === HOODIE ? fabricMap() : undefined} />
-    </mesh>
-  );
-  const shoe = (name) => (
-    <group ref={bind(name)}>
-      <RoundedBox args={[0.1, 0.07, 0.24]} radius={0.03} smoothness={3} position={[0, -0.03, 0.055]} castShadow>
-        <meshStandardMaterial color="#f1eee8" roughness={0.55} />
-      </RoundedBox>
-      <Block args={[0.104, 0.02, 0.245]} color="#c9b79a" roughness={0.8} position={[0, -0.06, 0.055]} castShadow={false} />
-      <Block args={[0.07, 0.006, 0.09]} color="#2e3a4c" roughness={0.6} position={[0, 0.006, 0.09]} castShadow={false} />
-    </group>
-  );
-  return (
-    <group>
-      <group ref={chair} position={[DESK_SIT.x + 0.06, 0, DESK_SIT.z]}>
-        <OfficeChair position={[0, 0, 0]} />
-      </group>
-      <group ref={root} position={DESK_SIT.toArray()} rotation={[0, DESK_YAW, 0]}>
-        <Interactive label="Say hi" onSelect={onClick} labelOffset={[0, 2.25, 0]}>
-          {/* Jeans: pelvis, thighs, shins */}
-          <mesh ref={pelvisMesh} scale={[0.155, 0.1, 0.11]} castShadow>
-            <sphereGeometry args={[1, 18, 12]} />
-            <meshStandardMaterial color={DENIM} roughness={0.9} map={fabricMap()} />
-          </mesh>
-          {sleeve('thighL', 0.068, 0.078, DENIM)}
-          {sleeve('thighR', 0.068, 0.078, DENIM)}
-          {sleeve('shinL', 0.05, 0.062, DENIM)}
-          {sleeve('shinR', 0.05, 0.062, DENIM)}
-          {ball('kneeBallL', 0.064, DENIM)}
-          {ball('kneeBallR', 0.064, DENIM)}
-          {shoe('shoeL')}
-          {shoe('shoeR')}
-          {/* Hoodie arms */}
-          {sleeve('upperL', 0.05, 0.058)}
-          {sleeve('upperR', 0.05, 0.058)}
-          {sleeve('foreL', 0.04, 0.048)}
-          {sleeve('foreR', 0.04, 0.048)}
-          {ball('shoulderBallL', 0.064, HOODIE)}
-          {ball('shoulderBallR', 0.064, HOODIE)}
-          {ball('elbowBallL', 0.05, HOODIE)}
-          {ball('elbowBallR', 0.05, HOODIE)}
-          <mesh ref={bind('handL')} scale={[0.038, 0.05, 0.026]} castShadow>
-            <sphereGeometry args={[1, 14, 10]} />
-            <meshStandardMaterial color={SKIN} roughness={0.65} />
-          </mesh>
-          <mesh ref={bind('handR')} scale={[0.038, 0.05, 0.026]} castShadow>
-            <sphereGeometry args={[1, 14, 10]} />
-            <meshStandardMaterial color={SKIN} roughness={0.65} />
-          </mesh>
-          {/* Torso: hoodie with hood, pocket and drawstrings */}
-          <group ref={torso}>
-            <mesh position={[0, 0.12, 0]} scale={[0.165, 0.16, 0.115]} castShadow>
-              <sphereGeometry args={[1, 20, 14]} />
-              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
-            </mesh>
-            <mesh position={[0, 0.34, 0]} scale={[0.205, 0.22, 0.13]} castShadow>
-              <sphereGeometry args={[1, 22, 16]} />
-              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
-            </mesh>
-            <mesh position={[0, 0.47, -0.005]} scale={[0.225, 0.075, 0.115]} castShadow>
-              <sphereGeometry args={[1, 20, 12]} />
-              <meshStandardMaterial color={HOODIE} roughness={0.92} map={fabricMap()} />
-            </mesh>
-            <mesh position={[0, 0.535, -0.085]} scale={[0.14, 0.085, 0.07]} castShadow>
-              <sphereGeometry args={[1, 16, 12]} />
-              <meshStandardMaterial color={HOODIE_DARK} roughness={0.95} map={fabricMap()} />
-            </mesh>
-            <mesh position={[0, 0.13, 0.1]} rotation={[-0.12, 0, 0]} scale={[0.11, 0.06, 0.02]}>
-              <sphereGeometry args={[1, 14, 8]} />
-              <meshStandardMaterial color={HOODIE_DARK} roughness={0.95} />
-            </mesh>
-            {[-0.035, 0.035].map((x) => (
-              <group key={x} position={[x, 0.43, 0.118]} rotation={[-0.2, 0, 0]}>
-                <mesh position={[0, -0.06, 0]}>
-                  <cylinderGeometry args={[0.004, 0.004, 0.12, 6]} />
-                  <meshStandardMaterial color="#ece6da" roughness={0.8} />
-                </mesh>
-                <mesh position={[0, -0.125, 0]}>
-                  <cylinderGeometry args={[0.006, 0.006, 0.018, 8]} />
-                  <meshStandardMaterial color="#cfc6b6" roughness={0.5} metalness={0.3} />
-                </mesh>
-              </group>
-            ))}
-            {/* Neck and head */}
-            <mesh position={[0, 0.58, 0.01]} castShadow>
-              <cylinderGeometry args={[0.048, 0.055, 0.1, 14]} />
-              <meshStandardMaterial color={SKIN} roughness={0.65} />
-            </mesh>
-            <group ref={head} position={[0, 0.62, 0.01]}>
-              <mesh position={[0, 0.13, 0.01]} scale={[0.112, 0.138, 0.124]} castShadow>
-                <sphereGeometry args={[1, 28, 20]} />
-                <meshStandardMaterial color={SKIN} roughness={0.62} />
-              </mesh>
-              {/* Jaw */}
-              <mesh position={[0, 0.06, 0.035]} scale={[0.085, 0.07, 0.09]}>
-                <sphereGeometry args={[1, 18, 12]} />
-                <meshStandardMaterial color={SKIN} roughness={0.62} />
-              </mesh>
-              {/* Short dark curly hair: a cap plus clustered curls */}
-              <mesh position={[0, 0.175, -0.005]} scale={[0.12, 0.11, 0.13]} castShadow>
-                <sphereGeometry args={[1, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-                <meshStandardMaterial color={HAIR} roughness={0.95} />
-              </mesh>
-              {[[-0.06, 0.25, 0.07], [0, 0.265, 0.08], [0.06, 0.25, 0.07], [-0.085, 0.22, 0.02], [0.085, 0.22, 0.02], [-0.04, 0.275, 0.0], [0.04, 0.275, 0.0], [0, 0.27, -0.06], [-0.07, 0.24, -0.06], [0.07, 0.24, -0.06], [-0.03, 0.235, 0.105], [0.03, 0.235, 0.105]].map((position, index) => (
-                <mesh key={index} position={position} castShadow>
-                  <sphereGeometry args={[0.038, 10, 8]} />
-                  <meshStandardMaterial color={HAIR} roughness={0.95} />
-                </mesh>
-              ))}
-              {/* Ears, brows, eyes, nose */}
-              {[-1, 1].map((side) => (
-                <group key={side}>
-                  <mesh position={[side * 0.11, 0.12, 0.0]} scale={[0.02, 0.035, 0.025]}>
-                    <sphereGeometry args={[1, 10, 8]} />
-                    <meshStandardMaterial color="#b97f61" roughness={0.65} />
-                  </mesh>
-                  <mesh position={[side * 0.038, 0.135, 0.112]}>
-                    <sphereGeometry args={[0.012, 10, 8]} />
-                    <meshStandardMaterial color="#1a1410" roughness={0.3} />
-                  </mesh>
-                  <Block args={[0.035, 0.008, 0.01]} color={HAIR} position={[side * 0.04, 0.162, 0.112]} rotation={[0, 0, side * -0.12]} castShadow={false} />
-                </group>
-              ))}
-              <mesh position={[0, 0.1, 0.13]} scale={[0.016, 0.024, 0.02]}>
-                <sphereGeometry args={[1, 10, 8]} />
-                <meshStandardMaterial color="#b98063" roughness={0.6} />
-              </mesh>
-              <Block args={[0.04, 0.006, 0.006]} color="#8a4f3f" position={[0, 0.058, 0.118]} castShadow={false} />
-              {bubble && (
-                <Html position={[0, 0.5, 0]} center zIndexRange={[30, 0]} wrapperClass="box-tour-html">
-                  <span className="box-tour-cat-bubble" role="status">{bubble}</span>
-                </Html>
-              )}
-            </group>
-          </group>
-        </Interactive>
-        <group ref={mugInHand} visible={false}>
-          <Mug position={[0, 0, 0]} color="#e8e2d8" rotation={0} />
-        </group>
-      </group>
-      <group ref={hearts} visible={false}>
-        {[0, 1, 2].map((index) => (
-          <mesh key={index}>
-            <shapeGeometry args={[heartShape]} />
-            <meshBasicMaterial color="#e0607e" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
           </mesh>
         ))}
       </group>
@@ -3679,8 +2402,8 @@ function KnowledgeGraph({ radius = 0.55, count = 26, labels = true, seed = 7, gr
 
 /* ---------- Robot ---------- */
 
-const ROBOT_DOCK = new THREE.Vector3(1.75, 0, -0.2);
-const ROBOT_DOCK_HOVER = new THREE.Vector3(1.75, 0.72, -0.2);
+const ROBOT_DOCK = new THREE.Vector3(2.25, 0, 1.8);
+const ROBOT_DOCK_HOVER = new THREE.Vector3(2.25, 0.72, 1.8);
 const ROBOT_PATH = [
   new THREE.Vector3(1.5, 1.55, 1.7),
   new THREE.Vector3(2.1, 1.75, -0.6),
@@ -3689,7 +2412,7 @@ const ROBOT_PATH = [
   'help',
   new THREE.Vector3(-0.9, 1.5, 1.6),
   new THREE.Vector3(0.5, 1.35, 2.2),
-  new THREE.Vector3(1.75, 1.1, -0.2),
+  new THREE.Vector3(2.25, 1.1, 1.8),
   'help',
 ];
 const ROBOT_HELP = new THREE.Vector3(-1.92, 1.68, 0.32);
@@ -3991,7 +2714,7 @@ function FloorLamp() {
   const { lightRef, nightRef } = useRoom();
   const shade = useRef();
   const glow = useRef();
-  const [x, z] = couchToRoom(0.92, -0.42);
+  const [x, z] = [2.7, 1.0];
   useFrame(() => {
     const on = lightRef.current.value;
     if (shade.current) shade.current.emissiveIntensity = 0.05 + on * (0.25 + nightRef.current.value * 0.45);
@@ -4016,31 +2739,12 @@ function FloorLamp() {
   );
 }
 
-function SideTable() {
-  const [x, z] = couchToRoom(0.95, 0.05);
-  return (
-    <group position={[x, 0, z]} rotation={[0, COUCH.yaw, 0]}>
-      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.2, 0.2, 0.03, 32]} />
-        <meshStandardMaterial color={palette.timber} roughness={0.5} map={woodAcross()} />
-      </mesh>
-      {[0, 1, 2].map((leg) => {
-        const angle = (leg / 3) * Math.PI * 2;
-        return (
-          <mesh key={leg} position={[Math.cos(angle) * 0.13, 0.25, Math.sin(angle) * 0.13]} rotation={[Math.sin(angle) * 0.1, 0, -Math.cos(angle) * 0.1]} castShadow>
-            <cylinderGeometry args={[0.012, 0.009, 0.5, 8]} />
-            <meshStandardMaterial color={palette.metal} metalness={0.5} roughness={0.4} />
-          </mesh>
-        );
-      })}
-      <Book position={[-0.03, 0.535, 0.03]} size={[0.2, 0.04, 0.15]} color="#3d5a80" />
-      <Book position={[-0.02, 0.575, 0.03]} size={[0.18, 0.035, 0.13]} color="#c4704e" />
-      <Plant position={[0.08, 0.515, -0.07]} scale={0.32} pot="#e9e3da" />
-    </group>
-  );
-}
+const DebugPanel = lazy(() => import('./room/DebugPanel'));
 
 function RoomScene(props) {
+  const [dpr, setDpr] = useState(() => (typeof window === 'undefined' ? 1 : Math.min(1.25, window.devicePixelRatio || 1)));
+  const [debug, setDebug] = useState(false);
+  useEffect(() => { setDebug(new URLSearchParams(window.location.search).has('debug')); }, []);
   const sky = useMemo(() => (
     <>
       <ThemeDriver />
@@ -4053,7 +2757,7 @@ function RoomScene(props) {
     <Canvas
       className="box-tour-canvas"
       camera={{ position: [0, 3, 18], fov: FOV, near: 0.1, far: 120 }}
-      dpr={[1, 1.25]}
+      dpr={dpr}
       shadows={{ type: THREE.PCFShadowMap }}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
     >
@@ -4068,6 +2772,9 @@ function RoomScene(props) {
         <BoxRoom {...props} />
       </RoomContext.Provider>
       <CameraTour progressRef={props.progressRef} reducedMotion={props.reducedMotion} />
+      {/* Drop resolution on slow GPUs, raise it again (up to 1.5x) when there is headroom. */}
+      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(1.5, window.devicePixelRatio || 1))} flipflops={3} onFallback={() => setDpr(1)} />
+      {debug && <Suspense fallback={null}><DebugPanel /></Suspense>}
     </Canvas>
   );
 }
@@ -4162,6 +2869,12 @@ export default function ScrollRoomPortfolio() {
   const lightRef = useRef({ raw: 1, value: 1, target: 1 });
   const [rgbMode, setRgbMode] = useState('wave');
   const toggleTheme = useCallback(() => setTheme((value) => (value === 'day' ? 'night' : 'day')), []);
+  // Lets the ?debug panel switch day/night.
+  useEffect(() => {
+    const onTheme = (event) => { if (event.detail?.theme === 'day' || event.detail?.theme === 'night') setTheme(event.detail.theme); };
+    window.addEventListener('tour:theme', onTheme);
+    return () => window.removeEventListener('tour:theme', onTheme);
+  }, []);
   const toggleLight = useCallback(() => setLightOn((value) => !value), []);
 
   // Restore the visitor's last sky choice without animating it in.
@@ -4404,7 +3117,7 @@ export default function ScrollRoomPortfolio() {
       </div>
 
       <nav className="box-tour-nav" aria-label="Room tour">
-        <Link href="/projects" className="box-tour-archive" aria-label="All projects"><span>All projects</span> <ArrowUpRight size={14} weight="bold" /></Link>
+        <a href={MAIN_PORTFOLIO} className="box-tour-archive" aria-label="Open my classic portfolio (2D site)" title="The classic 2D version of this portfolio"><Browser size={16} weight="bold" /><span>Classic portfolio</span> <ArrowUpRight size={14} weight="bold" /></a>
         <div className="box-tour-quick" role="group" aria-label="Room settings">
           <button type="button" onClick={toggleTheme} aria-pressed={theme === 'night'} aria-label={theme === 'day' ? 'Switch to night mode' : 'Switch to day mode'} title={theme === 'day' ? 'Night mode' : 'Day mode'}>
             {theme === 'day' ? <Moon size={20} weight="fill" /> : <Sun size={20} weight="fill" />}
@@ -4564,7 +3277,7 @@ export default function ScrollRoomPortfolio() {
               <a href="https://github.com/jazsajonia-pixel" target="_blank" rel="noreferrer"><GithubLogo size={17} /> GitHub</a>
               <a href="https://www.linkedin.com/in/jazzther-bert-shanne-sajonia-a67502439" target="_blank" rel="noreferrer"><LinkedinLogo size={17} /> LinkedIn</a>
             </div>
-            <Link href="/projects" className="box-tour-archive-link">Open the complete archive <ArrowUpRight size={15} weight="bold" /></Link>
+            <a href={`${MAIN_PORTFOLIO}/projects`} className="box-tour-archive-link">See every project on my classic portfolio <ArrowUpRight size={15} weight="bold" /></a>
           </ContextCard>
         )}
       </AnimatePresence>

@@ -1,5 +1,19 @@
 # Portfolio3D status
 
+## 2026-11-23: bedroom, VS Code monitor and realistic actors (`feat/bedroom-vscode-realism`)
+
+| Area | Status |
+| --- | --- |
+| Room | Re-laid out as a bedroom: bed with headboard, duvet and pillows, nightstand with lamp and alarm clock, three framed posters (General Santos, Ship it, lo-fi), reading corner with an armchair, rug, plants, shelves and a record credenza. A Claude-logo plush sits on the bed. Furniture and props are CC0 Poly Haven models with PBR textures. |
+| Monitor | A VS Code style editor (explorer, tabs, syntax-coloured code typing in, terminal running the dev server) with a "Run" pane on the right showing the selected project running. It redraws at 12 fps only while the room is open, and types slower when the person is not at the keyboard. |
+| Person | Rigged CC0 human (`public/models/man.glb`) with a walk cycle and posed activities: typing, using the mouse, drinking coffee from the mug in his hand, stretching, thinking. He walks to the window and to the bed to pet the cat, then back to the desk; the chair rolls out of the way. Click him for a "Say hi" bubble. |
+| Cat | CC0 kitten mesh with four bones added in code: breathing, head tracking the person or cursor, tail swish, nap cycle with Z sprites. Click it for a Web Audio purr and hearts. |
+| Physics | `@react-three/rapier`, lazy-loaded once the room opens: the Claude plush can be tossed, a beach ball kicked and two dice rolled on the notes table; the person and robot push them around. Toys drift back home when left. |
+| Debug | `/?debug` shows a Leva panel (exposure, DPR, shadows, collider wireframes, force an activity, stats, day/night). Drei `PerformanceMonitor` lowers the pixel ratio when frames drop. Camera framing reuses preallocated vectors (no per-frame allocations). |
+| Navigation | The top-left button is now "Classic portfolio" and opens https://jazz-portfolio1.vercel.app (icon only under 430 px). The classic portfolio gained a matching "3D room" pill in its top bar and sidebar. |
+| Lint / build | `npm run lint` (existing `no-img-element` warning only) and `npm run build` pass; static export served locally showed no console errors or 404s. Screenshots: `docs/review/bedroom-tour.jpg`, `docs/review/debug-panel.png`. Checked at 1440 × 900 and 390 × 844. |
+| Not verified | Only tested with software WebGL (about 680k triangles at the overview, ~860 draw calls); real GPU and phone frame rates are unknown. Audio not listened to. |
+
 ## 2026-11-22: living room, robot and lo-fi (`feat/living-room-robot`)
 
 | Area | Status |
